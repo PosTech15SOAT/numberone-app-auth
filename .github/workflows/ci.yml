@@ -64,3 +64,20 @@ jobs:
       - name: Terraform validate
         working-directory: infra
         run: terraform validate
+
+  required-validation:
+    name: Required validation
+    needs:
+      - python
+      - terraform
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify required jobs
+        env:
+          PYTHON_RESULT: ${{ needs.python.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform.result }}
+        run: |
+          test "$PYTHON_RESULT" = "success"
+          test "$TERRAFORM_RESULT" = "success"
