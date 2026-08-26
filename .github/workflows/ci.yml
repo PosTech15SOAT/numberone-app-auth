@@ -1,14 +1,12 @@
 name: CI
 
 on:
+  push:
   pull_request:
     branches:
       - main
       - develop
-  push:
-    branches:
-      - main
-      - develop
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,16 +16,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Required validation
+  python:
+    name: Python lint e testes
     runs-on: ubuntu-latest
-    timeout-minutes: 5
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Validate repository structure
-        run: |
-          echo "Repository validation executed successfully"
-          test -f README.md
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Testes
+        run: pytest
+
+      - name: Validar build do Lambda Layer
+        run: ./scripts/build-lambda-layer.sh
+
+  terraform:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        working-directory: infra
+        run: terraform fmt -check
+
+      - name: Terraform init sem backend
+        working-directory: infra
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: infra
+        run: terraform validate

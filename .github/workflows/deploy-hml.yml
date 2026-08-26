@@ -1,0 +1,71 @@
+name: Deploy HML
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-hml-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Terraform apply HML
+    runs-on: ubuntu-latest
+    environment: homolog
+    env:
+      TF_VAR_environment: hml
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_application_base_url: ${{ vars.APPLICATION_BASE_URL }}
+      TF_VAR_db_secret_arn: ${{ secrets.DB_SECRET_ARN }}
+      TF_VAR_jwt_secret_arn: ${{ secrets.JWT_SECRET_ARN }}
+      TF_VAR_lambda_layer_zip_path: ${{ github.workspace }}/build/lambda-layer.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciais AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias de validacao
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Testes
+        run: pytest
+
+      - name: Build Lambda Layer
+        run: ./scripts/build-lambda-layer.sh
+
+      - name: Terraform init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform plan
+        working-directory: infra
+        run: terraform plan
+
+      - name: Terraform apply
+        working-directory: infra
+        run: terraform apply -auto-approve
