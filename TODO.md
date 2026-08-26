@@ -18,12 +18,14 @@
 
 ## Passo 2 - Validacao local
 
-- [ ] Instalar Python dependencies. Bloqueado localmente: ambiente sem `pip`/`venv`.
-- [ ] Rodar `pytest`. Deve rodar no GitHub Actions.
-- [ ] Instalar Terraform. Bloqueado localmente: binario ausente.
-- [ ] Rodar `terraform fmt`. Deve rodar no GitHub Actions.
-- [ ] Rodar `terraform init -backend=false`. Deve rodar no GitHub Actions.
-- [ ] Rodar `terraform validate`. Deve rodar no GitHub Actions.
+- [x] Instalar Python dependencies.
+- [x] Rodar `ruff check`.
+- [x] Rodar `pytest`.
+- [x] Gerar `build/lambda-layer.zip`.
+- [x] Instalar Terraform.
+- [x] Rodar `terraform fmt`.
+- [x] Rodar `terraform init -backend=false`.
+- [x] Rodar `terraform validate`.
 
 ## Passo 3 - Integracao com o grupo
 
