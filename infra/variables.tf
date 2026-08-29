@@ -16,9 +16,22 @@ variable "environment" {
   default     = "hml"
 }
 
-variable "application_base_url" {
-  description = "URL base da aplicacao principal NumberOne no Kubernetes/Load Balancer."
+variable "cloud_state_bucket" {
+  description = "S3 bucket that stores the shared cloud Terraform state."
   type        = string
+}
+
+variable "cloud_state_key" {
+  description = "S3 key of the shared cloud Terraform state."
+  type        = string
+  default     = "cloud/terraform.tfstate"
+}
+
+variable "application_namespace" {
+  description = "Kubernetes namespace used to discover the internal application NLB by tag."
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "db_secret_arn" {

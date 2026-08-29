@@ -24,12 +24,12 @@
 - [x] Gerar `build/lambda-layer.zip`.
 - [x] Instalar Terraform.
 - [x] Rodar `terraform fmt`.
-- [x] Rodar `terraform init -backend=false`.
+- [x] Rodar `terraform init` com backend S3 remoto.
 - [x] Rodar `terraform validate`.
 
 ## Passo 3 - Integracao com o grupo
 
-- [ ] Confirmar endpoint da aplicacao principal no Kubernetes.
+- [x] Integrar o API Gateway ao NLB interno da aplicacao por VPC Link.
 - [ ] Confirmar segredo JWT compativel com a API principal.
 - [ ] Confirmar dados do RDS e estrategia de acesso da Lambda ao banco.
 - [ ] Confirmar se a API principal vai consumir claims RBAC.

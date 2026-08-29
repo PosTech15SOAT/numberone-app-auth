@@ -35,8 +35,8 @@ def test_auth_login_returns_token_for_active_customer(monkeypatch) -> None:
         handler,
         "find_rbac_claims",
         lambda auth_user_id: {
-            "roles": ["CLIENTE"],
-            "permissions": ["ordem-servico:read"],
+            "roles": ["CUSTOMER"],
+            "permissions": ["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"],
         },
     )
     monkeypatch.setattr(

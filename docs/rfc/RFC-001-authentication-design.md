@@ -12,11 +12,11 @@ Implementar autenticacao serverless por CPF para proteger rotas sensiveis da apl
 4. Lambda cria ou atualiza `auth_usuario`.
 5. Lambda consulta perfis e permissoes.
 6. Lambda emite JWT.
-7. API Gateway usa Lambda Authorizer para rotas `/api/admin/*`.
+7. API Gateway usa Lambda Authorizer nas rotas protegidas.
+8. API Gateway encaminha as requisicoes para o NLB interno do EKS por VPC Link.
 
 ## Pontos em aberto
 
-- URL final da aplicacao principal no Kubernetes.
 - Ambiente de homologacao e producao na AWS.
 - Segredo JWT definitivo.
 - Se a aplicacao principal vai consumir apenas validade do token ou tambem claims RBAC.

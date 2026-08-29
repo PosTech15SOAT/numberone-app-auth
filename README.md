@@ -172,19 +172,20 @@ Response:
 
 ```text
 /api/admin/{proxy+}
+/api/public/{proxy+}
 ```
 
-Essas rotas devem passar pelo Lambda Authorizer antes de serem encaminhadas para a aplicação principal.
+Essas rotas passam pelo Lambda Authorizer antes de serem encaminhadas para a aplicação principal. A exceção anônima é `/api/public/health`.
 
 Nas rotas protegidas, o API Gateway encaminha para a aplicação principal:
 
 ```text
-X-Auth-Principal-Id
-X-Auth-Customer-Id
-X-Auth-Cpf
-X-Auth-Role
-X-Auth-Roles
-X-Auth-Permissions
+X-Authenticated-Subject
+X-Authenticated-Customer-Id
+X-Authenticated-Status
+X-Authenticated-Roles
+X-Authenticated-Permissions
+X-Correlation-Id
 ```
 
 ## OpenAPI e Postman
@@ -219,7 +220,7 @@ Validar Terraform:
 ```bash
 cd infra
 terraform fmt -check
-terraform init -backend=false
+terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="key=auth/hml/terraform.tfstate" -backend-config="region=us-east-1"
 terraform validate
 ```
 
@@ -255,8 +256,9 @@ O Terraform provisiona:
 - Lambda `authorizer`.
 - Lambda Layer de dependências Python.
 - API Gateway HTTP API.
-- Rotas públicas e protegidas.
-- Headers `X-Auth-*` para a aplicação principal.
+- VPC Link para o NLB interno da aplicação no EKS.
+- Login e health públicos; demais rotas protegidas.
+- Headers `X-Authenticated-*` e `X-Correlation-Id` para a aplicação principal.
 - CloudWatch Log Groups.
 - Access logs JSON do API Gateway.
 - Permissões de invoke entre API Gateway e Lambdas.
@@ -287,7 +289,6 @@ Documentação específica: [infra/README.md](infra/README.md).
 
 Implementação base da frente de autenticação criada. Itens que dependem da integração com os demais repositórios:
 
-- Confirmar URL pública/privada da aplicação principal em Kubernetes.
 - Confirmar estratégia final de segredo JWT com o time da aplicação principal.
 - Confirmar dados e permissões de acesso ao RDS.
 - Criar ambientes `homolog` e `prod` no GitHub.

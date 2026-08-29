@@ -13,16 +13,17 @@ def test_issue_and_validate_token(monkeypatch) -> None:
         subject="auth-user-id",
         customer_id="customer-id",
         cpf="12345678909",
-        roles=["CLIENTE"],
-        permissions=["ordem-servico:read"],
+        roles=["CUSTOMER"],
+        permissions=["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"],
     )
     claims = validate_token(token)
 
     assert expires_in == 3600
     assert claims["sub"] == "auth-user-id"
     assert claims["customer_id"] == "customer-id"
-    assert claims["role"] == "CLIENTE"
-    assert claims["roles"] == ["CLIENTE"]
-    assert claims["permissions"] == ["ordem-servico:read"]
+    assert claims["role"] == "CUSTOMER"
+    assert claims["roles"] == ["CUSTOMER"]
+    assert claims["permissions"] == ["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"]
+    assert claims["status"] == "ACTIVE"
 
     config.jwt_settings.cache_clear()
