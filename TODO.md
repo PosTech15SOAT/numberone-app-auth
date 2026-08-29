@@ -29,7 +29,7 @@
 
 ## Passo 3 - Integracao com o grupo
 
-- [ ] Confirmar endpoint da aplicacao principal no Kubernetes.
+- [x] Integrar o API Gateway ao NLB interno da aplicacao por VPC Link.
 - [ ] Confirmar segredo JWT compativel com a API principal.
 - [ ] Confirmar dados do RDS e estrategia de acesso da Lambda ao banco.
 - [ ] Confirmar se a API principal vai consumir claims RBAC.

@@ -220,7 +220,7 @@ Validar Terraform:
 ```bash
 cd infra
 terraform fmt -check
-terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="region=us-east-1"
+terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="key=auth/hml/terraform.tfstate" -backend-config="region=us-east-1"
 terraform validate
 ```
 
@@ -256,6 +256,7 @@ O Terraform provisiona:
 - Lambda `authorizer`.
 - Lambda Layer de dependências Python.
 - API Gateway HTTP API.
+- VPC Link para o NLB interno da aplicação no EKS.
 - Login e health públicos; demais rotas protegidas.
 - Headers `X-Authenticated-*` e `X-Correlation-Id` para a aplicação principal.
 - CloudWatch Log Groups.
@@ -288,7 +289,6 @@ Documentação específica: [infra/README.md](infra/README.md).
 
 Implementação base da frente de autenticação criada. Itens que dependem da integração com os demais repositórios:
 
-- Confirmar URL pública/privada da aplicação principal em Kubernetes.
 - Confirmar estratégia final de segredo JWT com o time da aplicação principal.
 - Confirmar dados e permissões de acesso ao RDS.
 - Criar ambientes `homolog` e `prod` no GitHub.

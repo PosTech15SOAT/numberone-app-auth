@@ -12,3 +12,13 @@ output "authorizer_lambda_name" {
   description = "Nome da Lambda Authorizer."
   value       = aws_lambda_function.authorizer.function_name
 }
+
+output "vpc_link_id" {
+  description = "Identificador do VPC Link usado pela integracao privada."
+  value       = aws_apigatewayv2_vpc_link.application.id
+}
+
+output "application_load_balancer_arn" {
+  description = "ARN do NLB interno descoberto pela tag do Service Kubernetes."
+  value       = data.aws_lb.application.arn
+}

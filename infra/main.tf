@@ -250,27 +250,39 @@ resource "aws_apigatewayv2_integration" "auth_login" {
 }
 
 resource "aws_apigatewayv2_integration" "application_public_proxy" {
-  api_id             = aws_apigatewayv2_api.this.id
-  integration_type   = "HTTP_PROXY"
-  integration_method = "ANY"
-  integration_uri    = "${trim(var.application_base_url, "/")}/{proxy}"
-  request_parameters = local.authenticated_identity_headers
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "HTTP_PROXY"
+  integration_method     = "ANY"
+  integration_uri        = data.aws_lb_listener.application_http.arn
+  connection_type        = "VPC_LINK"
+  connection_id          = aws_apigatewayv2_vpc_link.application.id
+  payload_format_version = "1.0"
+  request_parameters     = local.private_integration_parameters
 }
 
 resource "aws_apigatewayv2_integration" "application_health" {
-  api_id             = aws_apigatewayv2_api.this.id
-  integration_type   = "HTTP_PROXY"
-  integration_method = "ANY"
-  integration_uri    = "${trim(var.application_base_url, "/")}/api/public/health"
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "HTTP_PROXY"
+  integration_method     = "ANY"
+  integration_uri        = data.aws_lb_listener.application_http.arn
+  connection_type        = "VPC_LINK"
+  connection_id          = aws_apigatewayv2_vpc_link.application.id
+  payload_format_version = "1.0"
+
+  request_parameters = {
+    "overwrite:path" = "$request.path"
+  }
 }
 
 resource "aws_apigatewayv2_integration" "application_admin_proxy" {
-  api_id             = aws_apigatewayv2_api.this.id
-  integration_type   = "HTTP_PROXY"
-  integration_method = "ANY"
-  integration_uri    = "${trim(var.application_base_url, "/")}/{proxy}"
-
-  request_parameters = local.authenticated_identity_headers
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "HTTP_PROXY"
+  integration_method     = "ANY"
+  integration_uri        = data.aws_lb_listener.application_http.arn
+  connection_type        = "VPC_LINK"
+  connection_id          = aws_apigatewayv2_vpc_link.application.id
+  payload_format_version = "1.0"
+  request_parameters     = local.private_integration_parameters
 }
 
 resource "aws_apigatewayv2_authorizer" "lambda" {
