@@ -51,7 +51,7 @@ def find_or_create_auth_user(customer: dict[str, Any], cpf: str) -> dict[str, An
         insert into auth_usuario_perfil (usuario_id, perfil_id)
         select %s, p.id
           from auth_perfil p
-         where p.nome = 'CLIENTE'
+         where p.nome = 'CUSTOMER'
         on conflict (usuario_id, perfil_id) do nothing
     """
 

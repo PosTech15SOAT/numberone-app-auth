@@ -64,16 +64,17 @@ terraform apply
 | Rota | Autorizacao | Destino |
 | --- | --- | --- |
 | `POST /auth/login` | Publica | Lambda auth-login |
-| `ANY /api/public/{proxy+}` | Publica | Aplicacao principal |
+| `ANY /api/public/health` | Publica | Aplicacao principal |
+| `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 | `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 
 ## Headers enviados para a aplicacao principal
 
 Nas rotas protegidas, o API Gateway encaminha:
 
-- `X-Auth-Principal-Id`
-- `X-Auth-Customer-Id`
-- `X-Auth-Cpf`
-- `X-Auth-Role`
-- `X-Auth-Roles`
-- `X-Auth-Permissions`
+- `X-Authenticated-Subject`
+- `X-Authenticated-Customer-Id`
+- `X-Authenticated-Status`
+- `X-Authenticated-Roles`
+- `X-Authenticated-Permissions`
+- `X-Correlation-Id`

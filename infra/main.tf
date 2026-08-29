@@ -10,6 +10,15 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
+
+  authenticated_identity_headers = {
+    "overwrite:header.X-Authenticated-Subject"     = "$context.authorizer.principalId"
+    "overwrite:header.X-Authenticated-Customer-Id" = "$context.authorizer.customerId"
+    "overwrite:header.X-Authenticated-Status"      = "$context.authorizer.status"
+    "overwrite:header.X-Authenticated-Roles"       = "$context.authorizer.roles"
+    "overwrite:header.X-Authenticated-Permissions" = "$context.authorizer.permissions"
+    "overwrite:header.X-Correlation-Id"            = "$context.authorizer.correlationId"
+  }
 }
 
 data "archive_file" "auth_login" {
@@ -245,6 +254,14 @@ resource "aws_apigatewayv2_integration" "application_public_proxy" {
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
   integration_uri    = "${trim(var.application_base_url, "/")}/{proxy}"
+  request_parameters = local.authenticated_identity_headers
+}
+
+resource "aws_apigatewayv2_integration" "application_health" {
+  api_id             = aws_apigatewayv2_api.this.id
+  integration_type   = "HTTP_PROXY"
+  integration_method = "ANY"
+  integration_uri    = "${trim(var.application_base_url, "/")}/api/public/health"
 }
 
 resource "aws_apigatewayv2_integration" "application_admin_proxy" {
@@ -253,14 +270,7 @@ resource "aws_apigatewayv2_integration" "application_admin_proxy" {
   integration_method = "ANY"
   integration_uri    = "${trim(var.application_base_url, "/")}/{proxy}"
 
-  request_parameters = {
-    "overwrite:header.X-Auth-Principal-Id" = "$context.authorizer.principalId"
-    "overwrite:header.X-Auth-Customer-Id"  = "$context.authorizer.customerId"
-    "overwrite:header.X-Auth-Cpf"          = "$context.authorizer.cpf"
-    "overwrite:header.X-Auth-Role"         = "$context.authorizer.role"
-    "overwrite:header.X-Auth-Roles"        = "$context.authorizer.roles"
-    "overwrite:header.X-Auth-Permissions"  = "$context.authorizer.permissions"
-  }
+  request_parameters = local.authenticated_identity_headers
 }
 
 resource "aws_apigatewayv2_authorizer" "lambda" {
@@ -280,9 +290,17 @@ resource "aws_apigatewayv2_route" "auth_login" {
 }
 
 resource "aws_apigatewayv2_route" "public_proxy" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "ANY /api/public/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.application_public_proxy.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.lambda.id
+}
+
+resource "aws_apigatewayv2_route" "health" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "ANY /api/public/{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.application_public_proxy.id}"
+  route_key = "ANY /api/public/health"
+  target    = "integrations/${aws_apigatewayv2_integration.application_health.id}"
 }
 
 resource "aws_apigatewayv2_route" "admin_proxy" {

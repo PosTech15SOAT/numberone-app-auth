@@ -13,10 +13,11 @@ A Fase 3 exige API Gateway para controle e roteamento, protegendo rotas sensivei
 Usar Amazon API Gateway HTTP API com:
 
 - `POST /auth/login` publico para emissao de JWT;
-- `ANY /api/public/{proxy+}` publico para endpoints publicos da aplicacao;
+- `ANY /api/public/health` publico para health check;
+- `ANY /api/public/{proxy+}` protegido por Lambda Authorizer para operacoes do cliente;
 - `ANY /api/admin/{proxy+}` protegido por Lambda Authorizer.
 
-Nas rotas administrativas, o gateway encaminha headers `X-Auth-*` para que a aplicacao principal consiga montar o contexto do usuario autenticado.
+Nas rotas protegidas, o gateway encaminha `X-Authenticated-*` e `X-Correlation-Id` para que a aplicacao principal consiga montar o contexto do usuario autenticado.
 
 ## Consequencias
 

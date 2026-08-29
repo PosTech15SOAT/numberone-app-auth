@@ -24,7 +24,7 @@
 - [x] Gerar `build/lambda-layer.zip`.
 - [x] Instalar Terraform.
 - [x] Rodar `terraform fmt`.
-- [x] Rodar `terraform init -backend=false`.
+- [x] Rodar `terraform init` com backend S3 remoto.
 - [x] Rodar `terraform validate`.
 
 ## Passo 3 - Integracao com o grupo

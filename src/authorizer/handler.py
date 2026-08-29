@@ -37,6 +37,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "role": str(claims.get("role", "")),
                 "roles": ",".join(claims.get("roles", [])),
                 "permissions": ",".join(claims.get("permissions", [])),
+                "status": str(claims.get("status", "")),
+                "correlationId": request_id,
             },
         }
     except jwt.PyJWTError:
