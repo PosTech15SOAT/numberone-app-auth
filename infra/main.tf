@@ -123,59 +123,13 @@ resource "aws_lambda_layer_version" "dependencies" {
   source_code_hash    = filebase64sha256(var.lambda_layer_zip_path)
 }
 
-resource "aws_iam_role" "lambda" {
-  name = "${local.name_prefix}-lambda-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = local.common_tags
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-  role       = aws_iam_role.lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_vpc" {
-  role       = aws_iam_role.lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-}
-
-resource "aws_iam_role_policy" "lambda_secrets" {
-  name = "${local.name_prefix}-lambda-secrets"
-  role = aws_iam_role.lambda.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = [
-          local.db_secret_arn,
-          local.jwt_secret_arn
-        ]
-      }
-    ]
-  })
+data "aws_iam_role" "lambda" {
+  name = var.lambda_role_name
 }
 
 resource "aws_lambda_function" "auth_login" {
   function_name = "${local.name_prefix}-auth-login"
-  role          = aws_iam_role.lambda.arn
+  role          = data.aws_iam_role.lambda.arn
   runtime       = "python3.12"
   handler       = "src.auth_login.handler.lambda_handler"
 
@@ -212,7 +166,7 @@ resource "aws_lambda_function" "auth_login" {
 
 resource "aws_lambda_function" "authorizer" {
   function_name = "${local.name_prefix}-authorizer"
-  role          = aws_iam_role.lambda.arn
+  role          = data.aws_iam_role.lambda.arn
   runtime       = "python3.12"
   handler       = "src.authorizer.handler.lambda_handler"
 

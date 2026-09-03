@@ -16,12 +16,16 @@ Terraform responsavel por provisionar a frente serverless de autenticacao:
 
 - Terraform >= 1.7.
 - AWS CLI autenticado.
+- Role `LabRole` fornecida pelo AWS Academy, com trust para Lambda.
 - Estados remotos das infraestruturas cloud e database no bucket S3.
 - Service `numberone-api-service` implantado no EKS com NLB interno.
 
 O ARN do segredo gerenciado pelo RDS e obtido automaticamente do state
 `database/terraform.tfstate`. O segredo JWT e criado por este Terraform quando
 nenhum ARN externo e informado.
+
+O Terraform reutiliza a role `LabRole` porque o Learner Lab bloqueia
+`iam:CreateRole` e permite `iam:PassRole` apenas para roles predefinidas.
 
 ## Build do Lambda Layer
 
