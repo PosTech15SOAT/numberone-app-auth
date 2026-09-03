@@ -21,6 +21,12 @@ variable "cloud_state_bucket" {
   type        = string
 }
 
+variable "lambda_role_name" {
+  description = "Existing AWS Academy IAM role used by the Lambda functions."
+  type        = string
+  default     = "LabRole"
+}
+
 variable "cloud_state_key" {
   description = "S3 key of the shared cloud Terraform state."
   type        = string
