@@ -14,6 +14,7 @@ def connect() -> psycopg.Connection:
         dbname=settings["dbname"],
         user=settings["username"],
         password=settings["password"],
+        sslmode=settings.get("sslmode", "require"),
         row_factory=dict_row,
         connect_timeout=5,
     )

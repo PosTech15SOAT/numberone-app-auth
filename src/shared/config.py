@@ -37,9 +37,11 @@ def db_settings() -> dict[str, Any]:
                 secret_payload.get("dbname")
                 or secret_payload.get("database")
                 or secret_payload.get("DB_NAME")
+                or os.getenv("DB_NAME")
             ),
             "username": secret_payload.get("username") or secret_payload.get("user"),
             "password": secret_payload.get("password"),
+            "sslmode": os.getenv("DB_SSL_MODE", "require"),
         }
         _require_settings(settings, ["host", "dbname", "username", "password"])
         return settings
@@ -55,13 +57,17 @@ def db_settings() -> dict[str, Any]:
         "dbname": os.environ["DB_NAME"],
         "username": os.environ["DB_USERNAME"],
         "password": os.environ["DB_PASSWORD"],
+        "sslmode": os.getenv("DB_SSL_MODE", "require"),
     }
 
 
 def _read_secret(secret_arn: str) -> dict[str, Any]:
     import boto3
 
-    client = boto3.client("secretsmanager")
+    client = boto3.client(
+        "secretsmanager",
+        endpoint_url=os.getenv("SECRETS_MANAGER_ENDPOINT_URL"),
+    )
     result = client.get_secret_value(SecretId=secret_arn)
     secret_string = result["SecretString"]
 

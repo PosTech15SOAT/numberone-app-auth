@@ -27,6 +27,19 @@ variable "cloud_state_key" {
   default     = "cloud/terraform.tfstate"
 }
 
+variable "database_state_bucket" {
+  description = "S3 bucket that stores the database Terraform state. Uses cloud_state_bucket when omitted."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "database_state_key" {
+  description = "S3 key of the shared database Terraform state."
+  type        = string
+  default     = "database/terraform.tfstate"
+}
+
 variable "application_namespace" {
   description = "Kubernetes namespace used to discover the internal application NLB by tag."
   type        = string
@@ -35,13 +48,31 @@ variable "application_namespace" {
 }
 
 variable "db_secret_arn" {
-  description = "ARN do Secrets Manager com credenciais do PostgreSQL."
+  description = "Optional override for the RDS managed secret ARN. By default it is read from the database Terraform state."
   type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+}
+
+variable "db_name" {
+  description = "PostgreSQL database name used when it is absent from the RDS managed secret."
+  type        = string
+  default     = "numberone"
+}
+
+variable "db_ssl_mode" {
+  description = "PostgreSQL SSL mode used by the login Lambda."
+  type        = string
+  default     = "require"
 }
 
 variable "jwt_secret_arn" {
-  description = "ARN do Secrets Manager com segredo JWT."
+  description = "Optional existing JWT secret ARN. When omitted, this stack creates and manages a secret."
   type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
 }
 
 variable "jwt_issuer" {
