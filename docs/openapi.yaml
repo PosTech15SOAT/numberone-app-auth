@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: NumberOne Auth API
+  version: 0.1.0
+  description: API serverless de autenticacao por CPF da Fase 3.
+paths:
+  /auth/login:
+    post:
+      summary: Autentica cliente por CPF
+      operationId: loginByCpf
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cpf
+              properties:
+                cpf:
+                  type: string
+                  example: "12345678909"
+      responses:
+        "200":
+          description: Token JWT emitido.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  tokenType:
+                    type: string
+                    example: Bearer
+                  expiresIn:
+                    type: integer
+                    example: 3600
+        "400":
+          description: CPF ou request invalido.
+        "401":
+          description: Cliente ou usuario de autenticacao inativo.
+        "404":
+          description: Cliente nao encontrado.
+        "500":
+          description: Erro interno.
