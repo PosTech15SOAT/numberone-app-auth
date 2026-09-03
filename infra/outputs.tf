@@ -22,3 +22,15 @@ output "application_load_balancer_arn" {
   description = "ARN do NLB interno descoberto pela tag do Service Kubernetes."
   value       = data.aws_lb.application.arn
 }
+
+output "db_secret_arn" {
+  description = "RDS managed secret consumed by the login Lambda."
+  value       = local.db_secret_arn
+  sensitive   = true
+}
+
+output "jwt_secret_arn" {
+  description = "JWT signing secret consumed by the login and authorizer Lambdas."
+  value       = local.jwt_secret_arn
+  sensitive   = true
+}

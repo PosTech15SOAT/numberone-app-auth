@@ -1,5 +1,16 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
+  db_secret_arn = coalesce(
+    var.db_secret_arn,
+    data.terraform_remote_state.database.outputs.rds_master_secret_arn
+  )
+  jwt_secret_arn = var.jwt_secret_arn != null ? var.jwt_secret_arn : aws_secretsmanager_secret.jwt[0].arn
+  auth_login_subnet_ids = length(var.lambda_subnet_ids) > 0 ? var.lambda_subnet_ids : (
+    data.terraform_remote_state.cloud.outputs.private_subnet_ids
+  )
+  auth_login_security_group_ids = length(var.lambda_security_group_ids) > 0 ? var.lambda_security_group_ids : (
+    [aws_security_group.auth_login_lambda.id]
+  )
   lambda_layer_arns = concat(
     var.lambda_layer_arns,
     var.lambda_layer_zip_path == null ? [] : [aws_lambda_layer_version.dependencies[0].arn]
@@ -19,6 +30,31 @@ locals {
     "overwrite:header.X-Authenticated-Permissions" = "$context.authorizer.permissions"
     "overwrite:header.X-Correlation-Id"            = "$context.authorizer.correlationId"
   }
+}
+
+resource "random_password" "jwt" {
+  count = var.jwt_secret_arn == null ? 1 : 0
+
+  length  = 64
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "jwt" {
+  count = var.jwt_secret_arn == null ? 1 : 0
+
+  name                    = "${local.name_prefix}/jwt"
+  recovery_window_in_days = 0
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "jwt" {
+  count = var.jwt_secret_arn == null ? 1 : 0
+
+  secret_id = aws_secretsmanager_secret.jwt[0].id
+  secret_string = jsonencode({
+    secret = random_password.jwt[0].result
+  })
 }
 
 data "archive_file" "auth_login" {
@@ -112,8 +148,6 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_vpc" {
-  count = length(var.lambda_subnet_ids) > 0 ? 1 : 0
-
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
@@ -131,8 +165,8 @@ resource "aws_iam_role_policy" "lambda_secrets" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          var.db_secret_arn,
-          var.jwt_secret_arn
+          local.db_secret_arn,
+          local.jwt_secret_arn
         ]
       }
     ]
@@ -153,20 +187,20 @@ resource "aws_lambda_function" "auth_login" {
 
   environment {
     variables = {
-      DB_SECRET_ARN          = var.db_secret_arn
-      JWT_SECRET_ARN         = var.jwt_secret_arn
-      JWT_ISSUER             = var.jwt_issuer
-      JWT_AUDIENCE           = var.jwt_audience
-      JWT_EXPIRATION_SECONDS = tostring(var.jwt_expiration_seconds)
+      DB_SECRET_ARN                = local.db_secret_arn
+      DB_NAME                      = var.db_name
+      DB_SSL_MODE                  = var.db_ssl_mode
+      JWT_SECRET_ARN               = local.jwt_secret_arn
+      SECRETS_MANAGER_ENDPOINT_URL = "https://${aws_vpc_endpoint.secretsmanager.dns_entry[0].dns_name}"
+      JWT_ISSUER                   = var.jwt_issuer
+      JWT_AUDIENCE                 = var.jwt_audience
+      JWT_EXPIRATION_SECONDS       = tostring(var.jwt_expiration_seconds)
     }
   }
 
-  dynamic "vpc_config" {
-    for_each = length(var.lambda_subnet_ids) > 0 ? [1] : []
-    content {
-      subnet_ids         = var.lambda_subnet_ids
-      security_group_ids = var.lambda_security_group_ids
-    }
+  vpc_config {
+    subnet_ids         = local.auth_login_subnet_ids
+    security_group_ids = local.auth_login_security_group_ids
   }
 
   tags = local.common_tags
@@ -190,7 +224,7 @@ resource "aws_lambda_function" "authorizer" {
 
   environment {
     variables = {
-      JWT_SECRET_ARN = var.jwt_secret_arn
+      JWT_SECRET_ARN = local.jwt_secret_arn
       JWT_ISSUER     = var.jwt_issuer
       JWT_AUDIENCE   = var.jwt_audience
     }
