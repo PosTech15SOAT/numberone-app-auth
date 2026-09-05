@@ -94,9 +94,9 @@ Ordem de provisionamento:
 3. implantar `numberone-app-auto-service-api`, criando o NLB interno;
 4. aplicar este Terraform, criando as Lambdas, o VPC Link e o API Gateway.
 
-Os workflows usam estados separados em `auth/hml/terraform.tfstate` e
-`auth/prod/terraform.tfstate`, enquanto ambos consomem o estado cloud
-compartilhado em `cloud/terraform.tfstate`.
+O workflow de CI valida o Terraform em `develop` sem backend e sem aplicar
+recursos. Somente `main` executa deploy, usando `auth/prod/terraform.tfstate` e
+consumindo o estado cloud compartilhado em `cloud/terraform.tfstate`.
 
 ## Headers enviados para a aplicacao principal
 
