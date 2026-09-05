@@ -291,5 +291,5 @@ Implementação base da frente de autenticação criada. Itens que dependem da i
 
 - Confirmar estratégia final de segredo JWT com o time da aplicação principal.
 - Confirmar dados e permissões de acesso ao RDS.
-- Criar ambientes `homolog` e `prod` no GitHub.
+- Manter apenas o environment `production` para deploy; `develop` e validado pela CI sem aplicar infraestrutura.
 - Configurar secrets/vars do GitHub Actions.
