@@ -141,6 +141,7 @@ resource "aws_lambda_function" "auth_login" {
   environment {
     variables = {
       DB_SECRET_ARN                = local.db_secret_arn
+      DB_HOST                      = data.terraform_remote_state.database.outputs.rds_endpoint
       DB_NAME                      = var.db_name
       DB_SSL_MODE                  = var.db_ssl_mode
       JWT_SECRET_ARN               = local.jwt_secret_arn
