@@ -32,7 +32,7 @@ def test_authorizer_allows_valid_bearer_token(monkeypatch) -> None:
     assert result["context"]["role"] == "CUSTOMER"
     assert result["context"]["roles"] == "CUSTOMER"
     assert result["context"]["permissions"] == "SERVICE_ORDER_TRACK_OWN,BUDGET_RESPOND_OWN"
-    assert result["context"]["status"] == "ACTIVE"
+    assert result["context"]["userStatus"] == "ACTIVE"
     assert result["context"]["correlationId"] == "client-correlation-123"
 
 
