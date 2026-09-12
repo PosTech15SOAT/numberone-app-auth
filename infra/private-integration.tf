@@ -2,7 +2,12 @@ locals {
   application_namespace = var.application_namespace != null ? var.application_namespace : "numberone-production"
   private_integration_parameters = merge(
     local.authenticated_identity_headers,
-    { "overwrite:path" = "$request.path" }
+    {
+      "overwrite:path"                    = "$request.path"
+      "overwrite:header.X-Diag-Static"    = "mapping-ok"
+      "overwrite:header.X-Diag-RequestId" = "$context.requestId"
+      "overwrite:header.X-Diag-Roles"     = "$context.authorizer.roles"
+    }
   )
 }
 
