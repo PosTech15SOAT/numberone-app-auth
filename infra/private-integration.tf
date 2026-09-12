@@ -1,7 +1,5 @@
 locals {
-  application_namespace = var.application_namespace != null ? var.application_namespace : (
-    var.environment == "prod" ? "numberone-production" : "numberone-homolog"
-  )
+  application_namespace = var.application_namespace != null ? var.application_namespace : "numberone-production"
   private_integration_parameters = merge(
     local.authenticated_identity_headers,
     { "overwrite:path" = "$request.path" }

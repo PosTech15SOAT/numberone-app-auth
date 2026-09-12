@@ -3,6 +3,7 @@ import logging
 from json import JSONDecodeError
 from typing import Any
 
+from src.shared.correlation import MissingCorrelationIdError, resolve_correlation_id
 from src.shared.cpf import is_valid_cpf, only_digits
 from src.shared.db import find_active_customer_by_cpf, find_or_create_auth_user, find_rbac_claims
 from src.shared.http import bad_request, not_found, response, server_error, unauthorized
@@ -14,14 +15,30 @@ logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    request_id = _request_id(event, context)
+    aws_request_id = _request_id(event, context)
+    try:
+        correlation_id = resolve_correlation_id(event)
+    except MissingCorrelationIdError as exception:
+        log_json(
+            logger,
+            logging.INFO,
+            "auth_login_missing_correlation_id",
+            requestId=aws_request_id,
+        )
+        return bad_request(str(exception))
 
     try:
         body = _parse_body(event)
         cpf = only_digits(body.get("cpf"))
 
         if not is_valid_cpf(cpf):
-            log_json(logger, logging.INFO, "auth_login_invalid_cpf", requestId=request_id)
+            log_json(
+                logger,
+                logging.INFO,
+                "auth_login_invalid_cpf",
+                requestId=aws_request_id,
+                correlation_id=correlation_id,
+            )
             return bad_request("CPF invalido.")
 
         customer = find_active_customer_by_cpf(cpf)
@@ -30,7 +47,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 logger,
                 logging.INFO,
                 "auth_login_customer_not_found",
-                requestId=request_id,
+                requestId=aws_request_id,
+                correlation_id=correlation_id,
                 cpf=mask_cpf(cpf),
             )
             return not_found("Cliente nao encontrado.")
@@ -40,7 +58,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 logger,
                 logging.INFO,
                 "auth_login_inactive_customer",
-                requestId=request_id,
+                requestId=aws_request_id,
+                correlation_id=correlation_id,
                 customerId=str(customer.get("id")),
             )
             return unauthorized("Cliente inativo.")
@@ -51,7 +70,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 logger,
                 logging.INFO,
                 "auth_login_inactive_auth_user",
-                requestId=request_id,
+                requestId=aws_request_id,
+                correlation_id=correlation_id,
                 authUserId=str(auth_user.get("id")),
             )
             return unauthorized("Usuario de autenticacao inativo.")
@@ -69,7 +89,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             logger,
             logging.INFO,
             "auth_login_success",
-            requestId=request_id,
+            requestId=aws_request_id,
+            correlation_id=correlation_id,
             authUserId=str(auth_user["id"]),
             customerId=str(customer["id"]),
             roles=claims["roles"],
@@ -85,10 +106,22 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             },
         )
     except (JSONDecodeError, ValueError):
-        log_json(logger, logging.INFO, "auth_login_invalid_request", requestId=request_id)
+        log_json(
+            logger,
+            logging.INFO,
+            "auth_login_invalid_request",
+            requestId=aws_request_id,
+            correlation_id=correlation_id,
+        )
         return bad_request("Request invalido.")
     except Exception:
-        log_json(logger, logging.ERROR, "auth_login_unexpected_error", requestId=request_id)
+        log_json(
+            logger,
+            logging.ERROR,
+            "auth_login_unexpected_error",
+            requestId=aws_request_id,
+            correlation_id=correlation_id,
+        )
         logger.exception("Authentication failed unexpectedly.")
         return server_error()
 

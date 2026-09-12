@@ -58,22 +58,24 @@ export TF_VAR_lambda_subnet_ids='["subnet-1","subnet-2"]'
 export TF_VAR_lambda_security_group_ids='["sg-1"]'
 ```
 
-## Comandos
+## Validacao local (execute em infra/)
 
 ```bash
-terraform init
+terraform init -backend-config="bucket=$TF_VAR_cloud_state_bucket" -backend-config="key=auth/prod/terraform.tfstate" -backend-config="region=us-east-1"
 terraform fmt
 terraform validate
 terraform plan
-terraform apply
 ```
+
+O apply e executado pelo workflow de deploy em `main`. Em um diretorio ja
+inicializado com outro backend, use `terraform init -reconfigure` com os
+parametros production acima; nao migre nem copie o state anterior.
 
 ## Rotas criadas
 
 | Rota | Autorizacao | Destino |
 | --- | --- | --- |
 | `POST /auth/login` | Publica | Lambda auth-login |
-| `ANY /api/public/health` | Publica | Aplicacao principal |
 | `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 | `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 
@@ -94,9 +96,16 @@ Ordem de provisionamento:
 3. implantar `numberone-app-auto-service-api`, criando o NLB interno;
 4. aplicar este Terraform, criando as Lambdas, o VPC Link e o API Gateway.
 
-Os workflows usam estados separados em `auth/hml/terraform.tfstate` e
-`auth/prod/terraform.tfstate`, enquanto ambos consomem o estado cloud
-compartilhado em `cloud/terraform.tfstate`.
+O unico deploy e executado em `main`, no GitHub Environment `production`,
+com `TF_VAR_environment=prod` e state `auth/prod/terraform.tfstate`.
+`develop` serve apenas para integracao/CI, com promocao por PR para `main`.
+Os states compartilhados continuam sendo `cloud/terraform.tfstate` e
+`database/terraform.tfstate`, sem copias por branch.
+A descoberta do NLB usa por padrao a tag
+`kubernetes.io/service-name=numberone-production/numberone-api-service`.
+
+As probes `/actuator/health/liveness` e `/actuator/health/readiness` sao internas
+ao Kubernetes e nao possuem rotas publicas no API Gateway.
 
 ## Headers enviados para a aplicacao principal
 

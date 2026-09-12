@@ -33,13 +33,13 @@
 - [ ] Confirmar segredo JWT compativel com a API principal.
 - [ ] Confirmar dados do RDS e estrategia de acesso da Lambda ao banco.
 - [ ] Confirmar se a API principal vai consumir claims RBAC.
-- [ ] Definir ambientes `homolog` e `production` no GitHub.
+- [ ] Configurar o unico GitHub Environment `production` para deploy de `main`.
 
 ## Passo 4 - AWS e entrega
 
 - [ ] Criar secrets no AWS Secrets Manager.
 - [ ] Configurar OIDC/IAM para GitHub Actions.
-- [ ] Aplicar Terraform em homologacao.
+- [ ] Validar o deploy production via `main`.
 - [ ] Testar `POST /auth/login`.
 - [ ] Testar rota `/api/admin/*` com Lambda Authorizer.
 - [x] Proteger branch `main`. Ja aparece protegida na organizacao.

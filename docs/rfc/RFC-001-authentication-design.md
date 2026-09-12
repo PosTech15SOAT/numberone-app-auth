@@ -17,6 +17,6 @@ Implementar autenticacao serverless por CPF para proteger rotas sensiveis da apl
 
 ## Pontos em aberto
 
-- Ambiente de homologacao e producao na AWS.
+- Validacao do unico ambiente production na AWS (main = deploy; develop = integracao/CI).
 - Segredo JWT definitivo.
 - Se a aplicacao principal vai consumir apenas validade do token ou tambem claims RBAC.
