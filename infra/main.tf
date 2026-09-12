@@ -225,6 +225,12 @@ resource "aws_apigatewayv2_stage" "default" {
       integrationStatus  = "$context.integrationStatus"
       integrationLatency = "$context.integrationLatency"
       errorMessage       = "$context.error.message"
+
+      authorizerPrincipalId = "$context.authorizer.principalId"
+      authorizerCustomerId  = "$context.authorizer.customerId"
+      authorizerStatus      = "$context.authorizer.status"
+      authorizerRoles       = "$context.authorizer.roles"
+      authorizerPermissions = "$context.authorizer.permissions"
     })
   }
 
