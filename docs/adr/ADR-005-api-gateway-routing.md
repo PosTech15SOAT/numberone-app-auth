@@ -13,7 +13,6 @@ A Fase 3 exige API Gateway para controle e roteamento, protegendo rotas sensivei
 Usar Amazon API Gateway HTTP API com:
 
 - `POST /auth/login` publico para emissao de JWT;
-- `ANY /api/public/health` publico para health check;
 - `ANY /api/public/{proxy+}` protegido por Lambda Authorizer para operacoes do cliente;
 - `ANY /api/admin/{proxy+}` protegido por Lambda Authorizer.
 
@@ -22,6 +21,9 @@ Nas rotas protegidas, o gateway encaminha `X-Authenticated-*` e `X-Correlation-I
 A integracao com a aplicacao e privada. O API Gateway usa um VPC Link nas
 subnets privadas e encaminha o trafego ao listener HTTP do NLB criado pelo
 Service Kubernetes `numberone-api-service`.
+
+As probes Kubernetes usam `/actuator/health/liveness` e
+`/actuator/health/readiness` internamente, sem exposicao pelo API Gateway.
 
 ## Consequencias
 

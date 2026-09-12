@@ -29,7 +29,7 @@ Atender à frente de autenticação da Fase 3:
 
 > A estratégia inicial usa HS256 para manter compatibilidade com a aplicação principal, que já valida JWT por segredo compartilhado. A evolução recomendada é RS256/JWKS.
 
-## Estrutura
+## Estrutura 
 
 ```text
 src/
@@ -175,7 +175,7 @@ Response:
 /api/public/{proxy+}
 ```
 
-Essas rotas passam pelo Lambda Authorizer antes de serem encaminhadas para a aplicação principal. A exceção anônima é `/api/public/health`.
+Essas rotas passam pelo Lambda Authorizer antes de serem encaminhadas para a aplicação principal.
 
 Nas rotas protegidas, o API Gateway encaminha para a aplicação principal:
 
@@ -187,6 +187,12 @@ X-Authenticated-Roles
 X-Authenticated-Permissions
 X-Correlation-Id
 ```
+
+`X-Correlation-Id` e obrigatorio e deve ser enviado pelo consumidor, por exemplo
+`X-Correlation-Id: teste-julio-os-001`. As Lambdas preservam o valor recebido
+exatamente como enviado, registram esse valor em logs como `correlation_id` e nao
+geram fallback. O `requestId` da AWS continua existindo separadamente para
+diagnostico da infraestrutura.
 
 ## OpenAPI e Postman
 
@@ -220,7 +226,7 @@ Validar Terraform:
 ```bash
 cd infra
 terraform fmt -check
-terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="key=auth/hml/terraform.tfstate" -backend-config="region=us-east-1"
+terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="key=auth/prod/terraform.tfstate" -backend-config="region=us-east-1"
 terraform validate
 ```
 
@@ -257,7 +263,7 @@ O Terraform provisiona:
 - Lambda Layer de dependências Python.
 - API Gateway HTTP API.
 - VPC Link para o NLB interno da aplicação no EKS.
-- Login e health públicos; demais rotas protegidas.
+- Login público; rotas de negócio protegidas.
 - Headers `X-Authenticated-*` e `X-Correlation-Id` para a aplicação principal.
 - CloudWatch Log Groups.
 - Access logs JSON do API Gateway.
@@ -285,11 +291,31 @@ Documentação específica: [infra/README.md](infra/README.md).
 - [RFC-001 - Desenho da autenticação](docs/rfc/RFC-001-authentication-design.md)
 - [TODO da frente de autenticação](TODO.md)
 
+## Branches e deploy
+
+- `develop` = integração/CI, sem ambiente e sem terraform apply.
+- `main` = único deploy production, inclusive para execução manual.
+- A promoção ocorre por PR de `develop` para `main`, validado por
+  `branch-flow.yml`. Preservar a proteção de branches e exigir os checks
+  `Required validation` e `Validate promotion source` em `main`.
+- `deploy-prod.yml` usa o GitHub Environment `production`,
+  `TF_VAR_environment=prod` e o state `auth/prod/terraform.tfstate`.
+- Nesse Environment, configurar a variável `TF_STATE_BUCKET` e os secrets
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`.
+  Restringir as branches de deploy a `main`.
+
+Há uma única infraestrutura cloud e um único banco, consumidos pelos states
+`cloud/terraform.tfstate` e `database/terraform.tfstate`. O auth integra com o
+NLB interno do Service `numberone-production/numberone-api-service`.
+
+As probes Kubernetes usam `/actuator/health/liveness` e
+`/actuator/health/readiness` internamente, sem rotas públicas no API Gateway.
+
 ## Status
 
 Implementação base da frente de autenticação criada. Itens que dependem da integração com os demais repositórios:
 
 - Confirmar estratégia final de segredo JWT com o time da aplicação principal.
 - Confirmar dados e permissões de acesso ao RDS.
-- Criar ambientes `homolog` e `prod` no GitHub.
+- Configurar o único GitHub Environment `production`.
 - Configurar secrets/vars do GitHub Actions.

@@ -13,7 +13,12 @@ variable "project_name" {
 variable "environment" {
   description = "Ambiente alvo."
   type        = string
-  default     = "hml"
+  default     = "prod"
+
+  validation {
+    condition     = var.environment == "prod"
+    error_message = "O unico ambiente permitido e prod."
+  }
 }
 
 variable "cloud_state_bucket" {

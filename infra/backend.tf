@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    key          = "auth/hml/terraform.tfstate"
+    key          = "auth/prod/terraform.tfstate"
     encrypt      = true
     use_lockfile = true
   }

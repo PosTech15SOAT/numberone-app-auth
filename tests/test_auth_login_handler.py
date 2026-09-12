@@ -46,11 +46,15 @@ def test_auth_login_returns_token_for_active_customer(monkeypatch) -> None:
     )
 
     result = handler.lambda_handler(
-        {"body": json.dumps({"cpf": "123.456.789-09"})},
+        {
+            "headers": {"X-Correlation-Id": "login-correlation-123"},
+            "body": json.dumps({"cpf": "123.456.789-09"}),
+        },
         None,
     )
 
     assert result["statusCode"] == 200
+    assert "X-Correlation-Id" not in result["headers"]
     assert json.loads(result["body"]) == {
         "accessToken": "token",
         "tokenType": "Bearer",
@@ -59,9 +63,16 @@ def test_auth_login_returns_token_for_active_customer(monkeypatch) -> None:
 
 
 def test_auth_login_rejects_invalid_cpf() -> None:
-    result = handler.lambda_handler({"body": json.dumps({"cpf": "11111111111"})}, None)
+    result = handler.lambda_handler(
+        {
+            "headers": {"X-Correlation-Id": "invalid-cpf-correlation"},
+            "body": json.dumps({"cpf": "11111111111"}),
+        },
+        None,
+    )
 
     assert result["statusCode"] == 400
+    assert "X-Correlation-Id" not in result["headers"]
     assert json.loads(result["body"])["message"] == "CPF invalido."
 
 
@@ -69,16 +80,42 @@ def test_auth_login_returns_not_found_when_customer_does_not_exist(monkeypatch) 
     monkeypatch.setattr(handler, "find_active_customer_by_cpf", lambda cpf: None)
 
     result = handler.lambda_handler(
-        {"body": json.dumps({"cpf": "123.456.789-09"})},
+        {
+            "headers": {"x-correlation-id": "not-found-correlation"},
+            "body": json.dumps({"cpf": "123.456.789-09"}),
+        },
         None,
     )
 
     assert result["statusCode"] == 404
+    assert "X-Correlation-Id" not in result["headers"]
     assert json.loads(result["body"])["message"] == "Cliente nao encontrado."
 
 
 def test_auth_login_rejects_invalid_json() -> None:
-    result = handler.lambda_handler({"body": "{"}, None)
+    result = handler.lambda_handler(
+        {"headers": {"X-Correlation-Id": "invalid-json-correlation"}, "body": "{"}, None
+    )
 
     assert result["statusCode"] == 400
+    assert "X-Correlation-Id" not in result["headers"]
     assert json.loads(result["body"])["message"] == "Request invalido."
+
+
+def test_auth_login_requires_correlation_id() -> None:
+    result = handler.lambda_handler({"body": json.dumps({"cpf": "11111111111"})}, None)
+
+    assert result["statusCode"] == 400
+    assert "X-Correlation-Id" not in result["headers"]
+    assert json.loads(result["body"])["message"] == "X-Correlation-Id header is required"
+
+
+def test_auth_login_requires_non_blank_correlation_id() -> None:
+    result = handler.lambda_handler(
+        {"headers": {"X-Correlation-Id": " "}, "body": json.dumps({"cpf": "11111111111"})},
+        None,
+    )
+
+    assert result["statusCode"] == 400
+    assert "X-Correlation-Id" not in result["headers"]
+    assert json.loads(result["body"])["message"] == "X-Correlation-Id header is required"

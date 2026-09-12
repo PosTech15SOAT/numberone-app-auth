@@ -28,7 +28,6 @@ locals {
     "overwrite:header.X-Authenticated-Status"      = "$context.authorizer.status"
     "overwrite:header.X-Authenticated-Roles"       = "$context.authorizer.roles"
     "overwrite:header.X-Authenticated-Permissions" = "$context.authorizer.permissions"
-    "overwrite:header.X-Correlation-Id"            = "$context.authorizer.correlationId"
   }
 }
 
@@ -196,7 +195,7 @@ resource "aws_apigatewayv2_api" "this" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_headers = ["authorization", "content-type", "x-request-id"]
+    allow_headers = ["authorization", "content-type", "x-correlation-id", "x-request-id"]
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_origins = var.allowed_cors_origins
     max_age       = 300
@@ -214,6 +213,7 @@ resource "aws_apigatewayv2_stage" "default" {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
     format = jsonencode({
       requestId          = "$context.requestId"
+      correlationId      = "$request.header.X-Correlation-Id"
       ip                 = "$context.identity.sourceIp"
       requestTime        = "$context.requestTime"
       httpMethod         = "$context.httpMethod"
@@ -246,20 +246,6 @@ resource "aws_apigatewayv2_integration" "application_public_proxy" {
   connection_id          = aws_apigatewayv2_vpc_link.application.id
   payload_format_version = "1.0"
   request_parameters     = local.private_integration_parameters
-}
-
-resource "aws_apigatewayv2_integration" "application_health" {
-  api_id                 = aws_apigatewayv2_api.this.id
-  integration_type       = "HTTP_PROXY"
-  integration_method     = "ANY"
-  integration_uri        = data.aws_lb_listener.application_http.arn
-  connection_type        = "VPC_LINK"
-  connection_id          = aws_apigatewayv2_vpc_link.application.id
-  payload_format_version = "1.0"
-
-  request_parameters = {
-    "overwrite:path" = "$request.path"
-  }
 }
 
 resource "aws_apigatewayv2_integration" "application_admin_proxy" {
@@ -295,12 +281,6 @@ resource "aws_apigatewayv2_route" "public_proxy" {
   target             = "integrations/${aws_apigatewayv2_integration.application_public_proxy.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.lambda.id
-}
-
-resource "aws_apigatewayv2_route" "health" {
-  api_id    = aws_apigatewayv2_api.this.id
-  route_key = "ANY /api/public/health"
-  target    = "integrations/${aws_apigatewayv2_integration.application_health.id}"
 }
 
 resource "aws_apigatewayv2_route" "admin_proxy" {
