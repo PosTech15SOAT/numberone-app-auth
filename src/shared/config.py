@@ -31,7 +31,7 @@ def db_settings() -> dict[str, Any]:
     if secret_arn:
         secret_payload = _read_secret(secret_arn)
         settings = {
-            "host": secret_payload.get("host"),
+            "host": os.getenv("DB_HOST") or secret_payload.get("host"),
             "port": int(secret_payload.get("port", 5432)),
             "dbname": (
                 secret_payload.get("dbname")
