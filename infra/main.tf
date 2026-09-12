@@ -25,7 +25,7 @@ locals {
   authenticated_identity_headers = {
     "overwrite:header.X-Authenticated-Subject"     = "$context.authorizer.principalId"
     "overwrite:header.X-Authenticated-Customer-Id" = "$context.authorizer.customerId"
-    "overwrite:header.X-Authenticated-Status"      = "$context.authorizer.status"
+    "overwrite:header.X-Authenticated-Status"      = "$context.authorizer.userStatus"
     "overwrite:header.X-Authenticated-Roles"       = "$context.authorizer.roles"
     "overwrite:header.X-Authenticated-Permissions" = "$context.authorizer.permissions"
   }
@@ -228,7 +228,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
       authorizerPrincipalId = "$context.authorizer.principalId"
       authorizerCustomerId  = "$context.authorizer.customerId"
-      authorizerStatus      = "$context.authorizer.status"
+      authorizerStatus      = "$context.authorizer.userStatus"
       authorizerRoles       = "$context.authorizer.roles"
       authorizerPermissions = "$context.authorizer.permissions"
     })

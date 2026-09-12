@@ -49,7 +49,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "role": str(claims.get("role", "")),
             "roles": ",".join(claims.get("roles", [])),
             "permissions": ",".join(claims.get("permissions", [])),
-            "status": str(claims.get("status", "")),
+            "userStatus": str(claims.get("status", "")),
         }
         if correlation_id is not None:
             authorizer_context["correlationId"] = correlation_id
