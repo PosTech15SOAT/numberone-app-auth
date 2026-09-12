@@ -29,7 +29,7 @@ Atender à frente de autenticação da Fase 3:
 
 > A estratégia inicial usa HS256 para manter compatibilidade com a aplicação principal, que já valida JWT por segredo compartilhado. A evolução recomendada é RS256/JWKS.
 
-## Estrutura
+## Estrutura 
 
 ```text
 src/
