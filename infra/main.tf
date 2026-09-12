@@ -213,18 +213,24 @@ resource "aws_apigatewayv2_stage" "default" {
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
     format = jsonencode({
-      requestId          = "$context.requestId"
-      correlationId      = "$request.header.X-Correlation-Id"
-      ip                 = "$context.identity.sourceIp"
-      requestTime        = "$context.requestTime"
-      httpMethod         = "$context.httpMethod"
-      routeKey           = "$context.routeKey"
-      status             = "$context.status"
-      protocol           = "$context.protocol"
-      responseLength     = "$context.responseLength"
-      integrationStatus  = "$context.integrationStatus"
-      integrationLatency = "$context.integrationLatency"
-      errorMessage       = "$context.error.message"
+      requestId              = "$context.requestId"
+      correlationId          = "$request.header.X-Correlation-Id"
+      ip                     = "$context.identity.sourceIp"
+      requestTime            = "$context.requestTime"
+      httpMethod             = "$context.httpMethod"
+      routeKey               = "$context.routeKey"
+      status                 = "$context.status"
+      protocol               = "$context.protocol"
+      responseLength         = "$context.responseLength"
+      integrationStatus      = "$context.integrationStatus"
+      integrationLatency     = "$context.integrationLatency"
+      errorMessage           = "$context.error.message"
+
+      authorizerPrincipalId  = "$context.authorizer.principalId"
+      authorizerCustomerId   = "$context.authorizer.customerId"
+      authorizerStatus       = "$context.authorizer.status"
+      authorizerRoles        = "$context.authorizer.roles"
+      authorizerPermissions  = "$context.authorizer.permissions"
     })
   }
 
