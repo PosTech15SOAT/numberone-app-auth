@@ -12,6 +12,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-Id",
+            "value": "{{correlationId}}"
           }
         ],
         "url": {
@@ -62,6 +66,10 @@
     {
       "key": "accessToken",
       "value": ""
+    },
+    {
+      "key": "correlationId",
+      "value": "numberone-auth-local-001"
     }
   ]
 }

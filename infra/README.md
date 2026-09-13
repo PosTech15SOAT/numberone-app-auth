@@ -5,7 +5,6 @@ Terraform responsavel por provisionar a frente serverless de autenticacao:
 - Lambda de login por CPF.
 - Lambda Authorizer.
 - API Gateway HTTP API.
-- IAM roles e policies.
 - CloudWatch Log Groups.
 - API Gateway access logs em JSON.
 - Lambda Layer de dependencias Python.
@@ -24,8 +23,10 @@ O ARN do segredo gerenciado pelo RDS e obtido automaticamente do state
 `database/terraform.tfstate`. O segredo JWT e criado por este Terraform quando
 nenhum ARN externo e informado.
 
-O Terraform reutiliza a role `LabRole` porque o Learner Lab bloqueia
-`iam:CreateRole` e permite `iam:PassRole` apenas para roles predefinidas.
+O Terraform consulta e utiliza a role preexistente `LabRole`; ele nao provisiona
+IAM roles ou policies. Essa e uma restricao pragmatica do ambiente AWS Academy:
+o Learner Lab bloqueia `iam:CreateRole` e permite `iam:PassRole` apenas para
+roles predefinidas.
 
 ## Build do Lambda Layer
 

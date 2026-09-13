@@ -1,207 +1,50 @@
-# PosTech15SOAT - NumberOne App Auth
+# NumberOne App Auth
 
-Repositório de autenticação serverless do Tech Challenge Fase 3 da organização `PosTech15SOAT`.
+## 📌 Visão Geral
 
-Este projeto centraliza a autenticação por CPF, o modelo RBAC, a emissão de JWT, a validação de tokens via Lambda Authorizer e o provisionamento do API Gateway usado para proteger as rotas sensíveis da aplicação NumberOne.
+Servico de autenticacao serverless do Tech Challenge Fase 3 do NumberOne. Ele realiza login por CPF, emite JWT, aplica o modelo RBAC e protege as rotas da aplicacao principal por meio de Lambda Authorizer e API Gateway.
 
-## Objetivo
+## 🏗️ Arquitetura
 
-Atender à frente de autenticação da Fase 3:
+Fluxo em production:
 
-- Validar CPF do cliente.
-- Consultar existência e status do cliente na base PostgreSQL.
-- Emitir JWT para consumo das APIs protegidas.
-- Validar JWT no API Gateway usando Lambda Authorizer.
-- Definir modelo RBAC com usuário, perfil e permissão.
-- Provisionar Lambdas e API Gateway via Terraform.
-- Documentar arquitetura, DER, ADRs e execução.
+```text
+Cliente -> API Gateway HTTP API -> Lambda Authorizer -> VPC Link -> NLB interno -> EKS/Spring -> RDS
+                 |
+                 +-> Lambda de login por CPF -> RDS
+```
 
-## Stack
+O login e publico. As rotas de negocio passam pelo authorizer antes de seguir para a aplicacao principal. Os diagramas detalhados estao em [Fluxos de autenticacao e autorizacao](docs/diagrams/auth-flow.md) e [DER da autenticacao](docs/diagrams/auth-rbac-er.md).
 
-- AWS Lambda
-- Amazon API Gateway HTTP API
-- PostgreSQL/RDS
-- Python 3.12
-- Terraform
-- GitHub Actions
+## 🧰 Tecnologias
+
+- Python 3.12 e AWS Lambda
+- Amazon API Gateway HTTP API, VPC Link e NLB interno
+- Amazon RDS PostgreSQL e AWS Secrets Manager
 - JWT HS256
-- CloudWatch Logs
+- Terraform, GitHub Actions e CloudWatch Logs
+- Pytest e Ruff
 
-> A estratégia inicial usa HS256 para manter compatibilidade com a aplicação principal, que já valida JWT por segredo compartilhado. A evolução recomendada é RS256/JWKS.
-
-## Estrutura 
-
-```text
-src/
-  auth_login/          Lambda pública de autenticação por CPF
-  authorizer/          Lambda Authorizer para validação de JWT
-  shared/              Código compartilhado de CPF, JWT, banco e respostas HTTP
-db/
-  migrations/          Migrations SQL do modelo RBAC
-infra/                 Terraform para Lambdas, API Gateway, IAM e variáveis
-docs/
-  adr/                 Architecture Decision Records
-  diagrams/            Diagramas Mermaid
-  openapi.yaml         Contrato OpenAPI do login
-  postman/             Collection Postman
-  rfc/                 RFCs técnicas
-tests/                 Testes automatizados
-.github/workflows/    CI e deploys
-scripts/               Scripts de build local/CI
-```
-
-## Fluxo de Autenticação
-
-```mermaid
-sequenceDiagram
-    actor Cliente
-    participant APIGW as API Gateway
-    participant Login as Lambda auth_login
-    participant DB as PostgreSQL/RDS
-
-    Cliente->>APIGW: POST /auth/login { cpf }
-    APIGW->>Login: Invoke
-    Login->>Login: Sanitiza e valida CPF
-    Login->>DB: Consulta cliente ativo por CPF
-    Login->>DB: Consulta perfis e permissoes RBAC
-    Login->>Login: Gera JWT
-    Login-->>APIGW: accessToken
-    APIGW-->>Cliente: 200 OK
-```
-
-## Fluxo de Autorização
-
-```mermaid
-sequenceDiagram
-    actor Cliente
-    participant APIGW as API Gateway
-    participant Authz as Lambda Authorizer
-    participant API as NumberOne API
-
-    Cliente->>APIGW: GET /api/admin/* Authorization: Bearer JWT
-    APIGW->>Authz: Valida token
-    Authz->>Authz: Verifica assinatura, issuer e expiracao
-    Authz-->>APIGW: isAuthorized=true
-    APIGW->>API: Proxy request
-    API-->>APIGW: Resposta
-    APIGW-->>Cliente: Resposta
-```
-
-## Modelo RBAC
-
-O modelo RBAC mantém usuários de autenticação vinculados ao cliente da aplicação principal.
-
-```mermaid
-erDiagram
-    CLIENTE ||--o| AUTH_USUARIO : "origina"
-    AUTH_USUARIO ||--o{ AUTH_USUARIO_PERFIL : "possui"
-    AUTH_PERFIL ||--o{ AUTH_USUARIO_PERFIL : "agrupa"
-    AUTH_PERFIL ||--o{ AUTH_PERFIL_PERMISSAO : "tem"
-    AUTH_PERMISSAO ||--o{ AUTH_PERFIL_PERMISSAO : "autoriza"
-
-    CLIENTE {
-        uuid id PK
-        varchar documento
-        varchar tipo_documento
-        boolean ativo
-    }
-
-    AUTH_USUARIO {
-        uuid id PK
-        uuid cliente_id FK
-        varchar cpf UK
-        varchar nome
-        varchar email
-        boolean ativo
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    AUTH_PERFIL {
-        uuid id PK
-        varchar nome UK
-        varchar descricao
-        boolean ativo
-    }
-
-    AUTH_PERMISSAO {
-        uuid id PK
-        varchar chave UK
-        varchar descricao
-    }
-
-    AUTH_USUARIO_PERFIL {
-        uuid usuario_id FK
-        uuid perfil_id FK
-    }
-
-    AUTH_PERFIL_PERMISSAO {
-        uuid perfil_id FK
-        uuid permissao_id FK
-    }
-```
-
-## Endpoints
-
-### Login por CPF
-
-```http
-POST /auth/login
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-  "cpf": "12345678901"
-}
-```
-
-Response:
-
-```json
-{
-  "accessToken": "jwt",
-  "tokenType": "Bearer",
-  "expiresIn": 3600
-}
-```
-
-### Rotas protegidas
+## 📁 Estrutura do Projeto
 
 ```text
-/api/admin/{proxy+}
-/api/public/{proxy+}
+src/            Lambdas de login, authorizer e codigo compartilhado
+db/migrations/  Migrations do modelo RBAC
+infra/          Terraform da frente de autenticacao
+docs/           Contratos, diagramas, ADRs e RFCs
+tests/          Testes automatizados
+scripts/        Build local e de CI da Lambda Layer
 ```
 
-Essas rotas passam pelo Lambda Authorizer antes de serem encaminhadas para a aplicação principal.
+## ✅ Pré-requisitos
 
-Nas rotas protegidas, o API Gateway encaminha para a aplicação principal:
+- Python 3.12
+- Terraform >= 1.7 para validacao ou operacoes de infraestrutura
+- AWS CLI autenticado e acesso ao ambiente AWS Academy para operacoes cloud
 
-```text
-X-Authenticated-Subject
-X-Authenticated-Customer-Id
-X-Authenticated-Status
-X-Authenticated-Roles
-X-Authenticated-Permissions
-X-Correlation-Id
-```
+## ⚙️ Configuração
 
-`X-Correlation-Id` e obrigatorio e deve ser enviado pelo consumidor, por exemplo
-`X-Correlation-Id: teste-julio-os-001`. As Lambdas preservam o valor recebido
-exatamente como enviado, registram esse valor em logs como `correlation_id` e nao
-geram fallback. O `requestId` da AWS continua existindo separadamente para
-diagnostico da infraestrutura.
-
-## OpenAPI e Postman
-
-- [OpenAPI](docs/openapi.yaml)
-- [Postman Collection](docs/postman/numberone-auth.postman_collection.json)
-
-## Execução Local
-
-Instalar dependências:
+Para desenvolvimento e testes locais:
 
 ```bash
 python -m venv .venv
@@ -209,113 +52,88 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-Rodar testes:
+As Lambdas recebem configuracoes de banco, JWT e rede pelo Terraform. Os detalhes de variaveis e state estao no [README de infraestrutura](infra/README.md).
+
+## ▶️ Execução Local
+
+Execute os testes e gere a layer de dependencias:
 
 ```bash
 pytest
-```
-
-Gerar Lambda Layer:
-
-```bash
 ./scripts/build-lambda-layer.sh
 ```
 
-Validar Terraform:
+Para validar o Terraform sem acessar o backend remoto:
 
 ```bash
 cd infra
 terraform fmt -check
-terraform init -backend-config="bucket=<TF_STATE_BUCKET>" -backend-config="key=auth/prod/terraform.tfstate" -backend-config="region=us-east-1"
+terraform init -backend=false
 terraform validate
 ```
 
-## Variáveis de Ambiente das Lambdas
+## 🧪 Testes
 
-| Variável | Descrição |
-| --- | --- |
-| `DB_SECRET_ARN` | ARN do Secrets Manager com credenciais do PostgreSQL. |
-| `JWT_SECRET_ARN` | ARN do Secrets Manager com segredo JWT. |
-| `JWT_SECRET` | Fallback local para segredo JWT. |
-| `JWT_ISSUER` | Issuer esperado nos tokens. |
-| `JWT_AUDIENCE` | Audience esperada nos tokens. |
-| `JWT_EXPIRATION_SECONDS` | Tempo de expiração do access token. |
+O projeto usa `ruff check src tests` para lint e `pytest` para os testes automatizados. A CI tambem valida a geracao da Lambda Layer e o Terraform.
 
-Formato esperado do segredo do banco:
+## 🔐 Segurança
 
-```json
-{
-  "host": "rds-endpoint",
-  "port": 5432,
-  "dbname": "numberone",
-  "username": "numberone",
-  "password": "senha"
-}
-```
+- O login valida CPF e consulta cliente e usuario de autenticacao ativos.
+- Tokens JWT HS256 usam segredo no AWS Secrets Manager; a escolha e registrada no [ADR-002](docs/adr/ADR-002-jwt-strategy.md).
+- O authorizer valida JWT nas rotas protegidas. A claim `status` e transformada em `userStatus` no contexto do authorizer e, no gateway, em `X-Authenticated-Status`.
+- `POST /auth/login` exige `X-Correlation-Id` para rastreabilidade. Nas rotas protegidas, esse header nao e requisito de autorizacao: se fornecido, segue para a aplicacao e para os logs; sua ausencia nao impede o authorizer.
 
-## Terraform
+## 🚀 CI/CD
 
-O Terraform provisiona:
+- Pushes executam lint, testes, build da layer e validacao Terraform.
+- Pull requests para `develop` e `main` executam validacao.
+- O fluxo de mudanca e `feature/* -> Pull Request -> develop -> Pull Request -> main`.
+- Protecao de branches e required checks sao centralizados em `postech15soat-governance`; este repositorio nao os reimplementa.
 
-- IAM roles das Lambdas.
-- Lambda `auth_login`.
-- Lambda `authorizer`.
-- Lambda Layer de dependências Python.
-- API Gateway HTTP API.
-- VPC Link para o NLB interno da aplicação no EKS.
-- Login público; rotas de negócio protegidas.
-- Headers `X-Authenticated-*` e `X-Correlation-Id` para a aplicação principal.
-- CloudWatch Log Groups.
-- Access logs JSON do API Gateway.
-- Permissões de invoke entre API Gateway e Lambdas.
+## ☁️ Deploy
 
-Arquivos principais:
+`main` representa production e aciona o deploy automatico pelo workflow `deploy-prod.yml`, usando exclusivamente o GitHub Environment `production` e `TF_VAR_environment=prod`. Nao existe ambiente cloud de homologacao.
 
-```text
-infra/main.tf
-infra/variables.tf
-infra/outputs.tf
-```
+## 🔌 APIs
 
-Documentação específica: [infra/README.md](infra/README.md).
+| Rota | Autorizacao | Destino |
+| --- | --- | --- |
+| `POST /auth/login` | Publica; requer `X-Correlation-Id` | Lambda `auth_login` |
+| `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
+| `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 
-## Documentação
+O contrato detalhado esta em [OpenAPI](docs/openapi.yaml). A [colecao Postman](docs/postman/numberone-auth.postman_collection.json) inclui uma variavel `correlationId` de exemplo para o login.
 
-- [DER da autenticação](docs/diagrams/auth-rbac-er.md)
-- [Fluxos de autenticação e autorização](docs/diagrams/auth-flow.md)
+## 📊 Observabilidade
+
+As Lambdas e o API Gateway registram logs no CloudWatch. O gateway registra `requestId` da AWS e o valor recebido de `X-Correlation-Id`; nao ha geracao de fallback para esse header.
+
+## 🗃️ Banco de Dados
+
+O login consulta PostgreSQL/RDS para cliente, usuario, perfis e permissoes. O modelo RBAC e suas migrations ficam em `db/migrations/`; consulte o [DER](docs/diagrams/auth-rbac-er.md). O segredo do RDS e obtido do state de infraestrutura de banco ou pode ser informado por override, conforme [infra/README.md](infra/README.md).
+
+## 📚 Documentação
+
+- [Infraestrutura](infra/README.md)
+- [OpenAPI](docs/openapi.yaml)
+- [Colecao Postman](docs/postman/numberone-auth.postman_collection.json)
+- [Fluxos de autenticacao e autorizacao](docs/diagrams/auth-flow.md)
+- [DER da autenticacao](docs/diagrams/auth-rbac-er.md)
+- [RFC-001 - Desenho da autenticacao](docs/rfc/RFC-001-authentication-design.md)
+
+## 🧠 Decisões Arquiteturais
+### ADRs/RFCs
+
 - [ADR-001 - Lambda e API Gateway](docs/adr/ADR-001-lambda-api-gateway.md)
-- [ADR-002 - Estratégia JWT](docs/adr/ADR-002-jwt-strategy.md)
+- [ADR-002 - Estrategia JWT](docs/adr/ADR-002-jwt-strategy.md)
 - [ADR-003 - Modelo RBAC](docs/adr/ADR-003-rbac-model.md)
-- [ADR-004 - Acesso ao RDS e Secrets Manager](docs/adr/ADR-004-lambda-rds-secrets.md)
+- [ADR-004 - Acesso das Lambdas ao RDS e Secrets Manager](docs/adr/ADR-004-lambda-rds-secrets.md)
 - [ADR-005 - Roteamento do API Gateway](docs/adr/ADR-005-api-gateway-routing.md)
-- [RFC-001 - Desenho da autenticação](docs/rfc/RFC-001-authentication-design.md)
-- [TODO da frente de autenticação](TODO.md)
 
-## Branches e deploy
+## ⚠️ Limitações e decisões do ambiente acadêmico
 
-- `develop` = integração/CI, sem ambiente e sem terraform apply.
-- `main` = único deploy production, inclusive para execução manual.
-- A promoção ocorre por PR de `develop` para `main`, validado por
-  `branch-flow.yml`. Preservar a proteção de branches e exigir os checks
-  `Required validation` e `Validate promotion source` em `main`.
-- `deploy-prod.yml` usa o GitHub Environment `production`,
-  `TF_VAR_environment=prod` e o state `auth/prod/terraform.tfstate`.
-- Nesse Environment, configurar a variável `TF_STATE_BUCKET` e os secrets
-  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`.
-  Restringir as branches de deploy a `main`.
+O ambiente cloud e o AWS Academy. Por essa restricao, o Terraform reutiliza a `LabRole` existente em vez de provisionar IAM roles ou policies. Ha somente ambiente local e production na AWS; a ausencia de homologacao cloud e uma decisao pragmatica do contexto academico.
 
-Há uma única infraestrutura cloud e um único banco, consumidos pelos states
-`cloud/terraform.tfstate` e `database/terraform.tfstate`. O auth integra com o
-NLB interno do Service `numberone-production/numberone-api-service`.
+## 🤝 Contribuição
 
-As probes Kubernetes usam `/actuator/health/liveness` e
-`/actuator/health/readiness` internamente, sem rotas públicas no API Gateway.
-
-## Status
-
-Implementação base da frente de autenticação criada. Itens que dependem da integração com os demais repositórios:
-
-- Confirmar estratégia final de segredo JWT com o time da aplicação principal.
-- Confirmar dados e permissões de acesso ao RDS.
-- Configurar o único GitHub Environment `production`.
-- Configurar secrets/vars do GitHub Actions.
+Crie uma branch `feature/*`, abra Pull Request para `develop` e, apos a integracao, promova de `develop` para `main` por Pull Request. Nao faca push direto para `develop` ou `main`.

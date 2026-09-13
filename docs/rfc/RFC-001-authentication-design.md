@@ -15,8 +15,21 @@ Implementar autenticacao serverless por CPF para proteger rotas sensiveis da apl
 7. API Gateway usa Lambda Authorizer nas rotas protegidas.
 8. API Gateway encaminha as requisicoes para o NLB interno do EKS por VPC Link.
 
-## Pontos em aberto
+## Decisoes implementadas
 
-- Validacao do unico ambiente production na AWS (main = deploy; develop = integracao/CI).
-- Segredo JWT definitivo.
-- Se a aplicacao principal vai consumir apenas validade do token ou tambem claims RBAC.
+- O unico ambiente cloud e `production`: `main` representa production e dispara
+  o deploy; `develop` e usado para integracao e CI. Nao ha ambiente cloud de
+  homologacao, conforme orientacao academica.
+- O JWT usa segredo compartilhado armazenado no AWS Secrets Manager, de acordo
+  com a estrategia HS256 registrada no ADR-002.
+- O token inclui claims RBAC. O Lambda Authorizer valida o token e entrega o
+  contexto autenticado ao API Gateway, que encaminha os headers
+  `X-Authenticated-*` para a aplicacao principal.
+- A claim JWT de origem para o status do usuario e `status`. O contexto do
+  authorizer a expoe como `userStatus`, e o API Gateway a encaminha em
+  `X-Authenticated-Status`.
+
+## Evolucoes futuras
+
+As evolucoes recomendadas nos ADRs, como RS256/JWKS e RDS Proxy, permanecem
+fora do escopo desta entrega e nao constituem decisoes aceitas por esta RFC.

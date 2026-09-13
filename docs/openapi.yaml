@@ -8,6 +8,14 @@ paths:
     post:
       summary: Autentica cliente por CPF
       operationId: loginByCpf
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: true
+          description: Identificador de correlacao informado pelo consumidor para rastreabilidade do login.
+          schema:
+            type: string
+            example: numberone-auth-local-001
       requestBody:
         required: true
         content:
