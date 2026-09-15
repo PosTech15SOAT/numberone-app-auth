@@ -34,6 +34,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "principalId": str(claims.get("sub", "")),
                 "customerId": str(claims.get("customer_id", "")),
                 "cpf": str(claims.get("cpf", "")),
+                "userStatus": str(claims.get("user_status", "")),
                 "role": str(claims.get("role", "")),
                 "roles": ",".join(claims.get("roles", [])),
                 "permissions": ",".join(claims.get("permissions", [])),

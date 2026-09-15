@@ -42,7 +42,7 @@ infra/                 Terraform para Lambdas, API Gateway, IAM e variáveis
 docs/
   adr/                 Architecture Decision Records
   diagrams/            Diagramas Mermaid
-  openapi.yaml         Contrato OpenAPI do login
+  openapi.yaml         Contrato OpenAPI do login e rota protegida
   postman/             Collection Postman
   rfc/                 RFCs técnicas
 tests/                 Testes automatizados
@@ -56,18 +56,22 @@ scripts/               Scripts de build local/CI
 sequenceDiagram
     actor Cliente
     participant APIGW as API Gateway
-    participant Login as Lambda auth_login
+    participant Login as Lambda Login
     participant DB as PostgreSQL/RDS
 
     Cliente->>APIGW: POST /auth/login { cpf }
     APIGW->>Login: Invoke
-    Login->>Login: Sanitiza e valida CPF
-    Login->>DB: Consulta cliente ativo por CPF
-    Login->>DB: Consulta perfis e permissoes RBAC
-    Login->>Login: Gera JWT
-    Login-->>APIGW: accessToken
-    APIGW-->>Cliente: 200 OK
+    Login->>Login: Normaliza e valida CPF
+    Login->>DB: Consulta usuario/status por CPF
+    DB-->>Login: Cliente ativo ou erro de autenticacao
+    Login->>DB: Upsert auth_usuario e consulta RBAC
+    DB-->>Login: Perfis e permissoes
+    Login->>Login: Gera JWT com user_status, roles e permissions
+    Login-->>APIGW: 200 { accessToken, tokenType, expiresIn }
+    APIGW-->>Cliente: accessToken
 ```
+
+Diagrama completo: [Fluxos de autenticação e autorização](docs/diagrams/auth-flow.md).
 
 ## Fluxo de Autorização
 
@@ -78,11 +82,12 @@ sequenceDiagram
     participant Authz as Lambda Authorizer
     participant API as NumberOne API
 
-    Cliente->>APIGW: GET /api/admin/* Authorization: Bearer JWT
-    APIGW->>Authz: Valida token
-    Authz->>Authz: Verifica assinatura, issuer e expiracao
-    Authz-->>APIGW: isAuthorized=true
-    APIGW->>API: Proxy request
+    Cliente->>APIGW: GET /api/admin/* + Bearer JWT
+    APIGW->>Authz: Invoke com Bearer JWT
+    Authz->>Authz: Valida assinatura, issuer, audience e expiracao
+    Authz->>Authz: Cria context com userStatus e RBAC
+    Authz-->>APIGW: isAuthorized=true + context
+    APIGW->>API: Proxy com X-Authenticated-*
     API-->>APIGW: Resposta
     APIGW-->>Cliente: Resposta
 ```
@@ -179,12 +184,13 @@ Essas rotas devem passar pelo Lambda Authorizer antes de serem encaminhadas para
 Nas rotas protegidas, o API Gateway encaminha para a aplicação principal:
 
 ```text
-X-Auth-Principal-Id
-X-Auth-Customer-Id
-X-Auth-Cpf
-X-Auth-Role
-X-Auth-Roles
-X-Auth-Permissions
+X-Authenticated-Principal-Id
+X-Authenticated-Customer-Id
+X-Authenticated-Cpf
+X-Authenticated-User-Status
+X-Authenticated-Role
+X-Authenticated-Roles
+X-Authenticated-Permissions
 ```
 
 ## OpenAPI e Postman
@@ -256,7 +262,7 @@ O Terraform provisiona:
 - Lambda Layer de dependências Python.
 - API Gateway HTTP API.
 - Rotas públicas e protegidas.
-- Headers `X-Auth-*` para a aplicação principal.
+- Headers `X-Authenticated-*` para a aplicação principal.
 - CloudWatch Log Groups.
 - Access logs JSON do API Gateway.
 - Permissões de invoke entre API Gateway e Lambdas.
@@ -281,14 +287,15 @@ Documentação específica: [infra/README.md](infra/README.md).
 - [ADR-004 - Acesso ao RDS e Secrets Manager](docs/adr/ADR-004-lambda-rds-secrets.md)
 - [ADR-005 - Roteamento do API Gateway](docs/adr/ADR-005-api-gateway-routing.md)
 - [RFC-001 - Desenho da autenticação](docs/rfc/RFC-001-authentication-design.md)
-- [TODO da frente de autenticação](TODO.md)
 
 ## Status
 
-Implementação base da frente de autenticação criada. Itens que dependem da integração com os demais repositórios:
+Frente de autenticação implementada e documentada para revisão no PR.
+Itens restantes dependem da integração com os demais repositórios e com o ambiente AWS:
 
 - Confirmar URL pública/privada da aplicação principal em Kubernetes.
-- Confirmar estratégia final de segredo JWT com o time da aplicação principal.
-- Confirmar dados e permissões de acesso ao RDS.
+- Criar os segredos finais de banco e JWT no AWS Secrets Manager.
+- Confirmar dados, subnets e Security Groups de acesso ao RDS.
 - Criar ambientes `homolog` e `prod` no GitHub.
 - Configurar secrets/vars do GitHub Actions.
+- Aplicar Terraform e migrations em homologação.

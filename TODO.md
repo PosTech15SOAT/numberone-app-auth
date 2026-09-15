@@ -32,7 +32,7 @@
 - [ ] Confirmar endpoint da aplicacao principal no Kubernetes.
 - [ ] Confirmar segredo JWT compativel com a API principal.
 - [ ] Confirmar dados do RDS e estrategia de acesso da Lambda ao banco.
-- [ ] Confirmar se a API principal vai consumir claims RBAC.
+- [ ] Confirmar consumo dos headers `X-Authenticated-*` pela API principal.
 - [ ] Definir ambientes `homolog` e `production` no GitHub.
 
 ## Passo 4 - AWS e entrega
@@ -44,3 +44,12 @@
 - [ ] Testar rota `/api/admin/*` com Lambda Authorizer.
 - [x] Proteger branch `main`. Ja aparece protegida na organizacao.
 - [ ] Atualizar README com links finais de deploy.
+
+## Passo 5 - Fechamento documental
+
+- [x] Criar diagrama de sequencia final para login e rota protegida.
+- [x] Linkar diagrama final no README.
+- [x] Revisar RFC para separar decisoes confirmadas de dependencias de integracao.
+- [x] Revisar ADRs para manter decisoes aceitas alinhadas com a implementacao.
+- [x] Atualizar OpenAPI e Postman para login e rota protegida.
+- [x] Alinhar headers autenticados para `X-Authenticated-*`.

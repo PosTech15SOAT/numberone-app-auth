@@ -22,4 +22,4 @@ Quando o RDS estiver privado, executar a Lambda de autenticacao em subnets priva
 - Segredos ficam fora do codigo e das variaveis abertas.
 - A Lambda precisa de IAM policy `secretsmanager:GetSecretValue`.
 - A execucao em VPC exige configuracao de subnets, security groups e permissao `AWSLambdaVPCAccessExecutionRole`.
-- A conexao direta com RDS e aceitavel para o escopo do Tech Challenge; evolucao futura recomendada: RDS Proxy.
+- A conexao direta com RDS atende ao escopo do Tech Challenge; RDS Proxy fica como opcao futura fora desta fase.

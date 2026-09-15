@@ -16,7 +16,7 @@ Usar Amazon API Gateway HTTP API com:
 - `ANY /api/public/{proxy+}` publico para endpoints publicos da aplicacao;
 - `ANY /api/admin/{proxy+}` protegido por Lambda Authorizer.
 
-Nas rotas administrativas, o gateway encaminha headers `X-Auth-*` para que a aplicacao principal consiga montar o contexto do usuario autenticado.
+Nas rotas administrativas, o gateway encaminha headers `X-Authenticated-*` para que a aplicacao principal consiga montar o contexto do usuario autenticado.
 
 ## Consequencias
 

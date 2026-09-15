@@ -254,12 +254,13 @@ resource "aws_apigatewayv2_integration" "application_admin_proxy" {
   integration_uri    = "${trim(var.application_base_url, "/")}/{proxy}"
 
   request_parameters = {
-    "overwrite:header.X-Auth-Principal-Id" = "$context.authorizer.principalId"
-    "overwrite:header.X-Auth-Customer-Id"  = "$context.authorizer.customerId"
-    "overwrite:header.X-Auth-Cpf"          = "$context.authorizer.cpf"
-    "overwrite:header.X-Auth-Role"         = "$context.authorizer.role"
-    "overwrite:header.X-Auth-Roles"        = "$context.authorizer.roles"
-    "overwrite:header.X-Auth-Permissions"  = "$context.authorizer.permissions"
+    "overwrite:header.X-Authenticated-Principal-Id" = "$context.authorizer.principalId"
+    "overwrite:header.X-Authenticated-Customer-Id"  = "$context.authorizer.customerId"
+    "overwrite:header.X-Authenticated-Cpf"          = "$context.authorizer.cpf"
+    "overwrite:header.X-Authenticated-User-Status"  = "$context.authorizer.userStatus"
+    "overwrite:header.X-Authenticated-Role"         = "$context.authorizer.role"
+    "overwrite:header.X-Authenticated-Roles"        = "$context.authorizer.roles"
+    "overwrite:header.X-Authenticated-Permissions"  = "$context.authorizer.permissions"
   }
 }
 

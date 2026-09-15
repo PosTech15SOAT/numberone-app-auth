@@ -61,6 +61,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             subject=str(auth_user["id"]),
             customer_id=str(customer["id"]),
             cpf=cpf,
+            user_status="ACTIVE",
             roles=claims["roles"],
             permissions=claims["permissions"],
         )

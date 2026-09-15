@@ -13,6 +13,7 @@ def test_issue_and_validate_token(monkeypatch) -> None:
         subject="auth-user-id",
         customer_id="customer-id",
         cpf="12345678909",
+        user_status="ACTIVE",
         roles=["CLIENTE"],
         permissions=["ordem-servico:read"],
     )
@@ -21,6 +22,7 @@ def test_issue_and_validate_token(monkeypatch) -> None:
     assert expires_in == 3600
     assert claims["sub"] == "auth-user-id"
     assert claims["customer_id"] == "customer-id"
+    assert claims["user_status"] == "ACTIVE"
     assert claims["role"] == "CLIENTE"
     assert claims["roles"] == ["CLIENTE"]
     assert claims["permissions"] == ["ordem-servico:read"]

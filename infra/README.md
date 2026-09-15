@@ -71,9 +71,10 @@ terraform apply
 
 Nas rotas protegidas, o API Gateway encaminha:
 
-- `X-Auth-Principal-Id`
-- `X-Auth-Customer-Id`
-- `X-Auth-Cpf`
-- `X-Auth-Role`
-- `X-Auth-Roles`
-- `X-Auth-Permissions`
+- `X-Authenticated-Principal-Id`
+- `X-Authenticated-Customer-Id`
+- `X-Authenticated-Cpf`
+- `X-Authenticated-User-Status`
+- `X-Authenticated-Role`
+- `X-Authenticated-Roles`
+- `X-Authenticated-Permissions`

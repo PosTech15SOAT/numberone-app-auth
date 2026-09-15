@@ -11,6 +11,7 @@ def issue_token(
     subject: str,
     customer_id: str,
     cpf: str,
+    user_status: str,
     roles: list[str],
     permissions: list[str],
 ) -> tuple[str, int]:
@@ -23,6 +24,7 @@ def issue_token(
         "sub": subject,
         "customer_id": customer_id,
         "cpf": cpf,
+        "user_status": user_status,
         "role": roles[0] if roles else "CLIENTE",
         "roles": roles,
         "permissions": permissions,

@@ -9,6 +9,7 @@ def test_authorizer_allows_valid_bearer_token(monkeypatch) -> None:
             "sub": "auth-user-id",
             "customer_id": "customer-id",
             "cpf": "12345678909",
+            "user_status": "ACTIVE",
             "role": "CLIENTE",
             "roles": ["CLIENTE"],
             "permissions": ["ordem-servico:read"],
@@ -22,6 +23,7 @@ def test_authorizer_allows_valid_bearer_token(monkeypatch) -> None:
 
     assert result["isAuthorized"] is True
     assert result["context"]["principalId"] == "auth-user-id"
+    assert result["context"]["userStatus"] == "ACTIVE"
     assert result["context"]["role"] == "CLIENTE"
     assert result["context"]["roles"] == "CLIENTE"
     assert result["context"]["permissions"] == "ordem-servico:read"
@@ -41,6 +43,7 @@ def test_authorizer_accepts_lowercase_bearer(monkeypatch) -> None:
             "sub": "auth-user-id",
             "customer_id": "customer-id",
             "cpf": "12345678909",
+            "user_status": "ACTIVE",
             "role": "CLIENTE",
             "roles": [],
             "permissions": [],

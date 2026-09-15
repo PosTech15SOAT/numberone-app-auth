@@ -17,6 +17,7 @@ Claims principais:
 - `sub`: id do usuario de autenticacao.
 - `customer_id`: id do cliente.
 - `cpf`: CPF autenticado.
+- `user_status`: status do usuario autenticado no momento da emissao do token.
 - `role`: primeiro perfil do usuario, mantido para compatibilidade com a aplicacao principal atual.
 - `roles`: perfis RBAC.
 - `permissions`: permissoes RBAC.
@@ -29,4 +30,4 @@ Claims principais:
 
 - Menor alteracao na aplicacao principal.
 - O segredo precisa ser compartilhado com seguranca via Secrets Manager.
-- Evolucao futura recomendada: RS256 com JWKS para reduzir compartilhamento de segredo simetrico.
+- RS256 com JWKS fica como opcao futura fora do escopo desta fase para reduzir compartilhamento de segredo simetrico.
