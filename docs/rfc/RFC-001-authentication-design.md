@@ -11,9 +11,10 @@ Implementar autenticacao serverless por CPF para proteger rotas sensiveis da apl
 3. Lambda consulta `cliente` no PostgreSQL.
 4. Lambda cria ou atualiza `auth_usuario`.
 5. Lambda consulta perfis e permissoes.
-6. Lambda emite JWT.
+6. Lambda emite JWT com `status`, perfis e permissoes.
 7. API Gateway usa Lambda Authorizer nas rotas protegidas.
-8. API Gateway encaminha as requisicoes para o NLB interno do EKS por VPC Link.
+8. Lambda Authorizer valida o JWT e devolve context com `userStatus` para o API Gateway.
+9. API Gateway encaminha as requisicoes para o NLB interno do EKS por VPC Link.
 
 ## Decisoes implementadas
 

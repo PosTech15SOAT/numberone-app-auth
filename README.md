@@ -102,7 +102,16 @@ O projeto usa `ruff check src tests` para lint e `pytest` para os testes automat
 | `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 | `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
 
-O contrato detalhado esta em [OpenAPI](docs/openapi.yaml). A [colecao Postman](docs/postman/numberone-auth.postman_collection.json) inclui uma variavel `correlationId` de exemplo para o login.
+O contrato detalhado esta em [OpenAPI](docs/openapi.yaml). A [colecao Postman](docs/postman/numberone-auth.postman_collection.json) inclui uma variavel `correlationId` e salva automaticamente o `accessToken` retornado no login.
+
+Nas rotas protegidas, o backend recebe do API Gateway:
+
+- `X-Authenticated-Subject`
+- `X-Authenticated-Customer-Id`
+- `X-Authenticated-Status`
+- `X-Authenticated-Roles`
+- `X-Authenticated-Permissions`
+- `X-Correlation-Id`, quando informado pelo cliente
 
 ## 📊 Observabilidade
 
