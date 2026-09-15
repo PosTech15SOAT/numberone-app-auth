@@ -2,12 +2,19 @@ openapi: 3.0.3
 info:
   title: NumberOne Auth API
   version: 0.1.0
-  description: API serverless de autenticacao por CPF da Fase 3.
+  description: API serverless de autenticacao por CPF e protecao de rotas administrativas da Fase 3.
+  license:
+    name: Academic
+    url: https://github.com/PosTech15SOAT/numberone-app-auth
+servers:
+  - url: https://api-id.execute-api.us-east-1.amazonaws.com
+    description: API Gateway HTTP API
 paths:
   /auth/login:
     post:
       summary: Autentica cliente por CPF
       operationId: loginByCpf
+      security: []
       parameters:
         - name: X-Correlation-Id
           in: header
@@ -52,3 +59,43 @@ paths:
           description: Cliente nao encontrado.
         "500":
           description: Erro interno.
+  /api/admin/{proxy}:
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: Caminho administrativo repassado para a aplicacao principal.
+        schema:
+          type: string
+    get:
+      summary: Exemplo de rota administrativa protegida
+      operationId: protectedAdminRoute
+      description: Requisicao protegida pelo Lambda Authorizer antes de ser encaminhada ao backend.
+      x-backend-request-headers:
+        - X-Authenticated-Subject
+        - X-Authenticated-Customer-Id
+        - X-Authenticated-Status
+        - X-Authenticated-Roles
+        - X-Authenticated-Permissions
+        - X-Correlation-Id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          description: Identificador de correlacao encaminhado ao backend quando informado.
+          schema:
+            type: string
+            example: numberone-auth-local-001
+      responses:
+        "200":
+          description: Resposta da aplicacao principal.
+        "401":
+          description: JWT ausente, invalido ou expirado.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

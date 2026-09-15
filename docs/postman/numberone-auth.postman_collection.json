@@ -6,6 +6,20 @@
   "item": [
     {
       "name": "Login por CPF",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.accessToken) {",
+              "  pm.collectionVariables.set('accessToken', body.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -42,6 +56,10 @@
           {
             "key": "Authorization",
             "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-Correlation-Id",
+            "value": "{{correlationId}}"
           }
         ],
         "url": {
@@ -55,7 +73,8 @@
             "ordens-servico"
           ]
         }
-      }
+      },
+      "description": "O cliente envia o Bearer JWT. O API Gateway valida o token e injeta os headers X-Authenticated-* para o backend."
     }
   ],
   "variable": [
