@@ -1,5 +1,7 @@
 # NumberOne App Auth
 
+[Arquitetura e entregáveis da Fase 4](docs/arquitetura-fase-4.md)
+
 ## 📌 Visão Geral
 
 Servico de autenticacao serverless do Tech Challenge Fase 3 do NumberOne. Ele realiza login por CPF, emite JWT, aplica o modelo RBAC e protege as rotas da aplicacao principal por meio de Lambda Authorizer e API Gateway.
