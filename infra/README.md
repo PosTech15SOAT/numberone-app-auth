@@ -1,120 +1,25 @@
-# Infraestrutura - NumberOne Auth
+# Terraform de Auth
 
-Terraform responsavel por provisionar a frente serverless de autenticacao:
+Auth provisiona Login, Authorizer, layer, logs, rede privada e o segredo de assinatura JWT. O stack Cloud configura a HTTP API e é o único que declara `aws_lambda_permission`. O Bloco 0 registrou que `auth/prod/terraform.tfstate` ainda não existia na conta de referência. Se outro ambiente tiver o Gateway legado no state de Auth, transfira ou retire seus recursos de API antes de aplicar esta mudança lá.
 
-- Lambda de login por CPF.
-- Lambda Authorizer.
-- API Gateway HTTP API.
-- CloudWatch Log Groups.
-- API Gateway access logs em JSON.
-- Lambda Layer de dependencias Python.
-- VPC Link para o NLB interno da API.
-- Acesso privado da Lambda de login ao RDS e ao Secrets Manager.
+## Configuração
 
-## Pre-requisitos
+- Backend S3 em `auth/prod/terraform.tfstate`. Auth usa os outputs de rede de Cloud e os de conexão e security group de Database.
+- `TF_STATE_BUCKET` e o trio de credenciais AWS Academy no environment `production`. A região do workflow é `us-east-1`.
+- `AUTH_DB_SECRET_ARN` aponta para o segredo `{"username":"numberone_auth_runtime","password":"..."}`. Crie o banco e o papel com o [bootstrap](../db/phase4/bootstrap.psql). A rede permite o acesso ao RDS compartilhado. Os grants PostgreSQL restringem o usuário ao banco de Auth e à leitura das tabelas de identidade.
+- `OS_IDENTITY_BASE_URL` é a origem HTTPS privada da OS, sem caminho. A rota privada e a configuração do listener precisam permitir acesso das Lambdas. `OS_IDENTITY_SECRET_ARN` aponta para um segredo distinto com `{"token":"..."}`, compartilhado com a OS.
+- `LabRole` precisa confiar em Lambda e permitir CloudWatch Logs, criação das interfaces VPC e leitura dos segredos de runtime. Ambas as funções usam o endpoint privado de Secrets Manager com policy limitada a três ARNs.
+- As funções leem os segredos ao iniciar o processo. Após troca de segredo, recicle as duas funções e a implantação da OS de forma coordenada. A rotação da chave HS256 exige novo login.
 
-- Terraform >= 1.7.
-- AWS CLI autenticado.
-- Role `LabRole` fornecida pelo AWS Academy, com trust para Lambda.
-- Estados remotos das infraestruturas cloud e database no bucket S3.
-- Service `numberone-api-service` implantado no EKS com NLB interno.
+## Publicação para a Cloud
 
-O ARN do segredo gerenciado pelo RDS e obtido automaticamente do state
-`database/terraform.tfstate`. O segredo JWT e criado por este Terraform quando
-nenhum ARN externo e informado.
+Após o apply de Auth, obtenha os quatro outputs e grave o JSON abaixo na variável de Actions `AUTH_LAMBDA_ARNS` da Cloud.
 
-O Terraform consulta e utiliza a role preexistente `LabRole`; ele nao provisiona
-IAM roles ou policies. Essa e uma restricao pragmatica do ambiente AWS Academy:
-o Learner Lab bloqueia `iam:CreateRole` e permite `iam:PassRole` apenas para
-roles predefinidas.
+| Campo | Output do Terraform de Auth |
+| --- | --- |
+| `login` | `auth_login_lambda_arn` |
+| `login_invoke` | `auth_login_lambda_invoke_arn` |
+| `authorizer` | `authorizer_lambda_arn` |
+| `authorizer_invoke` | `authorizer_lambda_invoke_arn` |
 
-## Build do Lambda Layer
-
-Execute na raiz do repositorio:
-
-```bash
-./scripts/build-lambda-layer.sh
-```
-
-O script gera:
-
-```text
-build/lambda-layer.zip
-```
-
-## Variaveis obrigatorias
-
-```bash
-export TF_VAR_cloud_state_bucket="bucket-de-estado-do-projeto"
-export TF_VAR_lambda_layer_zip_path="$(pwd)/../build/lambda-layer.zip"
-```
-
-Os seguintes overrides continuam disponiveis, mas nao sao necessarios no fluxo
-padrao:
-
-```bash
-export TF_VAR_db_secret_arn="arn:aws:secretsmanager:..."
-export TF_VAR_jwt_secret_arn="arn:aws:secretsmanager:..."
-export TF_VAR_lambda_subnet_ids='["subnet-1","subnet-2"]'
-export TF_VAR_lambda_security_group_ids='["sg-1"]'
-```
-
-## Validacao local (execute em infra/)
-
-```bash
-terraform init -backend-config="bucket=$TF_VAR_cloud_state_bucket" -backend-config="key=auth/prod/terraform.tfstate" -backend-config="region=us-east-1"
-terraform fmt
-terraform validate
-terraform plan
-```
-
-O apply e executado pelo workflow de deploy em `main`. Em um diretorio ja
-inicializado com outro backend, use `terraform init -reconfigure` com os
-parametros production acima; nao migre nem copie o state anterior.
-
-## Rotas criadas
-
-| Rota | Autorizacao | Destino |
-| --- | --- | --- |
-| `POST /auth/login` | Publica | Lambda auth-login |
-| `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
-| `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
-
-As integracoes da aplicacao sao privadas. O Terraform le a VPC e as subnets do
-estado `cloud/terraform.tfstate`, le o RDS e seu secret do estado
-`database/terraform.tfstate`, encontra o NLB pela tag Kubernetes do Service e
-cria o caminho `API Gateway -> VPC Link -> NLB`.
-
-A Lambda de login e conectada as subnets privadas por um Security Group
-dedicado. Uma regra libera somente esse grupo no PostgreSQL, e um endpoint
-privado do Secrets Manager e injetado na Lambda para evitar a necessidade de
-NAT Gateway no AWS Academy.
-
-Ordem de provisionamento:
-
-1. aplicar `postech15soat-infra-cloud`;
-2. aplicar `postech15soat-infra-database`;
-3. implantar `numberone-app-auto-service-api`, criando o NLB interno;
-4. aplicar este Terraform, criando as Lambdas, o VPC Link e o API Gateway.
-
-O unico deploy e executado em `main`, no GitHub Environment `production`,
-com `TF_VAR_environment=prod` e state `auth/prod/terraform.tfstate`.
-`develop` serve apenas para integracao/CI, com promocao por PR para `main`.
-Os states compartilhados continuam sendo `cloud/terraform.tfstate` e
-`database/terraform.tfstate`, sem copias por branch.
-A descoberta do NLB usa por padrao a tag
-`kubernetes.io/service-name=numberone-production/numberone-api-service`.
-
-As probes `/actuator/health/liveness` e `/actuator/health/readiness` sao internas
-ao Kubernetes e nao possuem rotas publicas no API Gateway.
-
-## Headers enviados para a aplicacao principal
-
-Nas rotas protegidas, o API Gateway encaminha:
-
-- `X-Authenticated-Subject`
-- `X-Authenticated-Customer-Id`
-- `X-Authenticated-Status`
-- `X-Authenticated-Roles`
-- `X-Authenticated-Permissions`
-- `X-Correlation-Id`
+A Cloud limita a invocação do Login a `POST /auth/login` no stage `$default`. A permissão do Authorizer é específica ao ID da API e ao ID do Authorizer. Payload v2.0, respostas simples e cache desabilitado são parte do contrato. O Authorizer produz 401 por credenciais ausentes ou inválidas e 403 por falta de autorização para a rota. [Lambda Authorizer para HTTP APIs](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-lambda-authorizer.html)

@@ -1,25 +1,14 @@
 # NumberOne App Auth
 
-## 📌 Visão Geral
-
-Servico de autenticacao serverless do Tech Challenge Fase 3 do NumberOne. Ele realiza login por CPF, emite JWT, aplica o modelo RBAC e protege as rotas da aplicacao principal por meio de Lambda Authorizer e API Gateway.
-
-## 🏗️ Arquitetura
-
-Fluxo em production:
-
-```text
-Cliente -> API Gateway HTTP API -> Lambda Authorizer -> VPC Link -> NLB interno -> EKS/Spring -> RDS
-                 |
-                 +-> Lambda de login por CPF -> RDS
-```
-
-O login e publico. As rotas de negocio passam pelo authorizer antes de seguir para a aplicacao principal. Os diagramas detalhados estao em [Fluxos de autenticacao e autorizacao](docs/diagrams/auth-flow.md) e [DER da autenticacao](docs/diagrams/auth-rbac-er.md).
+> O Bloco 1A atualiza o contrato de login e move a entrada HTTP para a Cloud.
+> Consulte [Identidade e autorização na Fase 4](docs/fase-4-identidade.md) e
+> [Terraform de Auth](infra/README.md). As ADRs e os diagramas da Fase 3
+> registram a arquitetura anterior.
 
 ## 🧰 Tecnologias
 
 - Python 3.12 e AWS Lambda
-- Amazon API Gateway HTTP API, VPC Link e NLB interno
+- Amazon API Gateway HTTP API e integração privada com a OS
 - Amazon RDS PostgreSQL e AWS Secrets Manager
 - JWT HS256
 - Terraform, GitHub Actions e CloudWatch Logs
@@ -29,7 +18,7 @@ O login e publico. As rotas de negocio passam pelo authorizer antes de seguir pa
 
 ```text
 src/            Lambdas de login, authorizer e codigo compartilhado
-db/migrations/  Migrations do modelo RBAC
+db/migrations/  Migrations legadas e bootstrap da base de identidade
 infra/          Terraform da frente de autenticacao
 docs/           Contratos, diagramas, ADRs e RFCs
 tests/          Testes automatizados
@@ -78,10 +67,9 @@ O projeto usa `ruff check src tests` para lint e `pytest` para os testes automat
 
 ## 🔐 Segurança
 
-- O login valida CPF e consulta cliente e usuario de autenticacao ativos.
-- Tokens JWT HS256 usam segredo no AWS Secrets Manager; a escolha e registrada no [ADR-002](docs/adr/ADR-002-jwt-strategy.md).
-- O authorizer valida JWT nas rotas protegidas. A claim `status` e transformada em `userStatus` no contexto do authorizer e, no gateway, em `X-Authenticated-Status`.
-- `POST /auth/login` exige `X-Correlation-Id` para rastreabilidade. Nas rotas protegidas, esse header nao e requisito de autorizacao: se fornecido, segue para a aplicacao e para os logs; sua ausencia nao impede o authorizer.
+O login usa CPF e senha de uma conta provisionada. A OS confirma o vínculo
+do cliente. O Authorizer valida o JWT por rota antes de enviar a identidade
+aos serviços. O login exige um `X-Correlation-Id` não vazio.
 
 ## 🚀 CI/CD
 
@@ -96,21 +84,15 @@ O projeto usa `ruff check src tests` para lint e `pytest` para os testes automat
 
 ## 🔌 APIs
 
-| Rota | Autorizacao | Destino |
-| --- | --- | --- |
-| `POST /auth/login` | Publica; requer `X-Correlation-Id` | Lambda `auth_login` |
-| `ANY /api/public/{proxy+}` | Lambda Authorizer | Aplicacao principal |
-| `ANY /api/admin/{proxy+}` | Lambda Authorizer | Aplicacao principal |
+`POST /auth/login` é público e exige CPF, senha e correlação. Consulte o
+[OpenAPI](docs/openapi.yaml) e a [coleção Postman](docs/postman/numberone-auth.postman_collection.json).
+O Authorizer protege as rotas de negócio configuradas na Cloud.
 
-O contrato detalhado esta em [OpenAPI](docs/openapi.yaml). A [colecao Postman](docs/postman/numberone-auth.postman_collection.json) inclui uma variavel `correlationId` de exemplo para o login.
+## 🗃️ Banco de dados
 
-## 📊 Observabilidade
-
-As Lambdas e o API Gateway registram logs no CloudWatch. O gateway registra `requestId` da AWS e o valor recebido de `X-Correlation-Id`; nao ha geracao de fallback para esse header.
-
-## 🗃️ Banco de Dados
-
-O login consulta PostgreSQL/RDS para cliente, usuario, perfis e permissoes. O modelo RBAC e suas migrations ficam em `db/migrations/`; consulte o [DER](docs/diagrams/auth-rbac-er.md). O segredo do RDS e obtido do state de infraestrutura de banco ou pode ser informado por override, conforme [infra/README.md](infra/README.md).
+As duas funções usam o banco exclusivo de Auth com um papel de leitura.
+A OS mantém o cadastro de clientes e confirma o vínculo pela rota privada
+de identidade. O bootstrap dessa base fica em `db/phase4`.
 
 ## 📚 Documentação
 
