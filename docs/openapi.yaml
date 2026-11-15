@@ -1,25 +1,24 @@
 openapi: 3.0.3
 info:
   title: NumberOne Auth API
-  version: 0.1.0
-  description: API serverless de autenticacao por CPF e protecao de rotas administrativas da Fase 3.
+  version: 0.2.0
+  description: Login de clientes e operadores da NumberOne.
   license:
     name: Academic
     url: https://github.com/PosTech15SOAT/numberone-app-auth
 servers:
   - url: https://api-id.execute-api.us-east-1.amazonaws.com
-    description: API Gateway HTTP API
+    description: API Gateway HTTP API da Cloud
 paths:
   /auth/login:
     post:
-      summary: Autentica cliente por CPF
+      summary: Autentica uma identidade cadastrada em Auth
       operationId: loginByCpf
       security: []
       parameters:
         - name: X-Correlation-Id
           in: header
           required: true
-          description: Identificador de correlacao informado pelo consumidor para rastreabilidade do login.
           schema:
             type: string
             example: numberone-auth-local-001
@@ -29,12 +28,20 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - cpf
+              required: [cpf, password]
               properties:
                 cpf:
                   type: string
-                  example: "12345678909"
+                  example: "52998224725"
+                password:
+                  type: string
+                  format: password
+                  minLength: 12
+                  maxLength: 128
+                identityType:
+                  type: string
+                  enum: [CUSTOMER, OPERATOR]
+                  default: CUSTOMER
       responses:
         "200":
           description: Token JWT emitido.
@@ -42,6 +49,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [accessToken, tokenType, expiresIn]
                 properties:
                   accessToken:
                     type: string
@@ -52,50 +60,10 @@ paths:
                     type: integer
                     example: 3600
         "400":
-          description: CPF ou request invalido.
+          description: CPF, tipo de identidade, correlação ou corpo inválido.
         "401":
-          description: Cliente ou usuario de autenticacao inativo.
-        "404":
-          description: Cliente nao encontrado.
+          description: Credenciais inválidas, identidade inativa ou vínculo com a OS não confirmado.
+        "429":
+          description: Limite de requisições do Gateway atingido.
         "500":
           description: Erro interno.
-  /api/admin/{proxy}:
-    parameters:
-      - name: proxy
-        in: path
-        required: true
-        description: Caminho administrativo repassado para a aplicacao principal.
-        schema:
-          type: string
-    get:
-      summary: Exemplo de rota administrativa protegida
-      operationId: protectedAdminRoute
-      description: Requisicao protegida pelo Lambda Authorizer antes de ser encaminhada ao backend.
-      x-backend-request-headers:
-        - X-Authenticated-Subject
-        - X-Authenticated-Customer-Id
-        - X-Authenticated-Status
-        - X-Authenticated-Roles
-        - X-Authenticated-Permissions
-        - X-Correlation-Id
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: X-Correlation-Id
-          in: header
-          required: false
-          description: Identificador de correlacao encaminhado ao backend quando informado.
-          schema:
-            type: string
-            example: numberone-auth-local-001
-      responses:
-        "200":
-          description: Resposta da aplicacao principal.
-        "401":
-          description: JWT ausente, invalido ou expirado.
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT

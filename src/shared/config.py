@@ -32,18 +32,21 @@ def db_settings() -> dict[str, Any]:
         secret_payload = _read_secret(secret_arn)
         settings = {
             "host": os.getenv("DB_HOST") or secret_payload.get("host"),
-            "port": int(secret_payload.get("port", 5432)),
+            "port": int(os.getenv("DB_PORT") or secret_payload.get("port", 5432)),
             "dbname": (
-                secret_payload.get("dbname")
+                os.getenv("DB_NAME")
+                or secret_payload.get("dbname")
                 or secret_payload.get("database")
                 or secret_payload.get("DB_NAME")
-                or os.getenv("DB_NAME")
             ),
             "username": secret_payload.get("username") or secret_payload.get("user"),
             "password": secret_payload.get("password"),
             "sslmode": os.getenv("DB_SSL_MODE", "require"),
         }
         _require_settings(settings, ["host", "dbname", "username", "password"])
+        expected_username = os.getenv("DB_RUNTIME_USERNAME")
+        if expected_username and settings["username"] != expected_username:
+            raise RuntimeError("Unexpected Auth database role.")
         return settings
 
     required = ["DB_HOST", "DB_NAME", "DB_USERNAME", "DB_PASSWORD"]

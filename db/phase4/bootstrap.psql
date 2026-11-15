@@ -1,0 +1,17 @@
+\set ON_ERROR_STOP on
+
+SELECT 'CREATE ROLE numberone_auth_owner NOLOGIN'
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'numberone_auth_owner') \gexec
+SELECT 'CREATE ROLE numberone_auth_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION'
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'numberone_auth_runtime') \gexec
+GRANT numberone_auth_owner TO CURRENT_USER;
+
+SELECT 'CREATE DATABASE numberone_auth OWNER numberone_auth_owner'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'numberone_auth') \gexec
+REVOKE CONNECT, TEMPORARY ON DATABASE numberone_auth FROM PUBLIC;
+GRANT CONNECT ON DATABASE numberone_auth TO numberone_auth_runtime;
+
+\connect numberone_auth
+SET ROLE numberone_auth_owner;
+\ir 001_identity.sql
+RESET ROLE;
