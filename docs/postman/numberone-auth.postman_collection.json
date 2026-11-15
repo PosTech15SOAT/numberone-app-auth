@@ -5,13 +5,32 @@
   },
   "item": [
     {
-      "name": "Login por CPF",
+      "name": "Login de cliente ou operador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.unset('accessToken');",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-Id",
+            "value": "{{correlationId}}"
           }
         ],
         "url": {
@@ -26,7 +45,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"cpf\": \"12345678909\"\n}"
+          "raw": "{\n  \"cpf\": \"{{cpf}}\",\n  \"password\": \"{{password}}\",\n  \"identityType\": \"{{identityType}}\"\n}"
         }
       }
     },
@@ -55,6 +74,9 @@
     }
   ],
   "variable": [
+    {"key": "cpf", "value": ""},
+    {"key": "password", "value": ""},
+    {"key": "identityType", "value": "CUSTOMER"},
     {
       "key": "baseUrl",
       "value": "https://api-id.execute-api.us-east-1.amazonaws.com"
@@ -62,6 +84,10 @@
     {
       "key": "accessToken",
       "value": ""
+    },
+    {
+      "key": "correlationId",
+      "value": "numberone-auth-local-001"
     }
   ]
 }

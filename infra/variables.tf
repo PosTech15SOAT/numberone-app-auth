@@ -13,7 +13,12 @@ variable "project_name" {
 variable "environment" {
   description = "Ambiente alvo."
   type        = string
-  default     = "hml"
+  default     = "prod"
+
+  validation {
+    condition     = var.environment == "prod"
+    error_message = "O unico ambiente permitido e prod."
+  }
 }
 
 variable "cloud_state_bucket" {
@@ -46,33 +51,6 @@ variable "database_state_key" {
   default     = "database/terraform.tfstate"
 }
 
-variable "application_namespace" {
-  description = "Kubernetes namespace used to discover the internal application NLB by tag."
-  type        = string
-  default     = null
-  nullable    = true
-}
-
-variable "db_secret_arn" {
-  description = "Optional override for the RDS managed secret ARN. By default it is read from the database Terraform state."
-  type        = string
-  default     = null
-  nullable    = true
-  sensitive   = true
-}
-
-variable "db_name" {
-  description = "PostgreSQL database name used when it is absent from the RDS managed secret."
-  type        = string
-  default     = "numberone"
-}
-
-variable "db_ssl_mode" {
-  description = "PostgreSQL SSL mode used by the login Lambda."
-  type        = string
-  default     = "require"
-}
-
 variable "jwt_secret_arn" {
   description = "Optional existing JWT secret ARN. When omitted, this stack creates and manages a secret."
   type        = string
@@ -99,12 +77,6 @@ variable "jwt_expiration_seconds" {
   default     = 3600
 }
 
-variable "allowed_cors_origins" {
-  description = "Origins liberadas no CORS do API Gateway."
-  type        = list(string)
-  default     = ["*"]
-}
-
 variable "lambda_layer_arns" {
   description = "Layers Lambda com dependencias Python, como PyJWT e psycopg."
   type        = list(string)
@@ -118,19 +90,40 @@ variable "lambda_layer_zip_path" {
 }
 
 variable "log_retention_days" {
-  description = "Retencao dos logs CloudWatch das Lambdas e do API Gateway."
+  description = "Retencao dos logs CloudWatch das Lambdas."
   type        = number
   default     = 14
 }
 
-variable "lambda_subnet_ids" {
-  description = "Subnets privadas para execucao das Lambdas quando acessarem RDS privado."
-  type        = list(string)
-  default     = []
+variable "auth_db_secret_arn" {
+  description = "ARN do secret do papel de runtime do banco exclusivo de Auth."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^arn:[^:]+:secretsmanager:", var.auth_db_secret_arn))
+    error_message = "Informe o ARN do secret de runtime de Auth."
+  }
 }
 
-variable "lambda_security_group_ids" {
-  description = "Security Groups das Lambdas quando acessarem RDS privado."
-  type        = list(string)
-  default     = []
+variable "os_identity_base_url" {
+  description = "Origem HTTPS privada que serve a consulta de identidade da OS."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^https://[a-zA-Z0-9.-]+/?$", var.os_identity_base_url))
+    error_message = "Informe a origem HTTPS privada da OS, sem caminho."
+  }
+}
+
+variable "os_identity_secret_arn" {
+  description = "ARN do secret compartilhado para consultar a identidade na OS."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^arn:[^:]+:secretsmanager:", var.os_identity_secret_arn))
+    error_message = "Informe o ARN do secret da integração de identidade da OS."
+  }
 }
