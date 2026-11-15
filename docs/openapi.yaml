@@ -3,11 +3,18 @@ info:
   title: NumberOne Auth API
   version: 0.2.0
   description: Login de clientes e operadores da NumberOne.
+  license:
+    name: Academic
+    url: https://github.com/PosTech15SOAT/numberone-app-auth
+servers:
+  - url: https://api-id.execute-api.us-east-1.amazonaws.com
+    description: API Gateway HTTP API da Cloud
 paths:
   /auth/login:
     post:
       summary: Autentica uma identidade cadastrada em Auth
       operationId: loginByCpf
+      security: []
       parameters:
         - name: X-Correlation-Id
           in: header

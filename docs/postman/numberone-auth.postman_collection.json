@@ -6,6 +6,21 @@
   "item": [
     {
       "name": "Login de cliente ou operador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.unset('accessToken');",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [

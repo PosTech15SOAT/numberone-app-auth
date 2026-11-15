@@ -86,7 +86,10 @@ aos serviços. O login exige um `X-Correlation-Id` não vazio.
 
 `POST /auth/login` é público e exige CPF, senha e correlação. Consulte o
 [OpenAPI](docs/openapi.yaml) e a [coleção Postman](docs/postman/numberone-auth.postman_collection.json).
-O Authorizer protege as rotas de negócio configuradas na Cloud.
+A coleção salva o `accessToken` do login para as próximas requisições.
+O Authorizer protege as rotas de negócio configuradas na Cloud. As integrações
+preenchem os cabeçalhos de identidade a partir do contexto do Authorizer.
+Consulte o [contrato de identidade e autorização](docs/fase-4-identidade.md).
 
 ## 🗃️ Banco de dados
 
