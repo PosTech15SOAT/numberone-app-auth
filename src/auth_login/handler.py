@@ -1,144 +1,72 @@
 import json
 import logging
-from json import JSONDecodeError
 from typing import Any
 
 from src.shared.correlation import MissingCorrelationIdError, resolve_correlation_id
 from src.shared.cpf import is_valid_cpf, only_digits
-from src.shared.db import find_active_customer_by_cpf, find_or_create_auth_user, find_rbac_claims
-from src.shared.http import bad_request, not_found, response, server_error, unauthorized
+from src.shared.db import find_login_identity
+from src.shared.http import bad_request, response, server_error, unauthorized
+from src.shared.identity import ADMIN, CUSTOMER, customer_id
 from src.shared.jwt_service import issue_token
-from src.shared.logging import log_json, mask_cpf
+from src.shared.logging import log_json
+from src.shared.os_identity import matches_active_customer
+from src.shared.password import DUMMY_HASH, valid_password, verify_password
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    aws_request_id = _request_id(event, context)
+    request_id = (event.get("requestContext") or {}).get("requestId") or getattr(
+        context, "aws_request_id", None
+    )
     try:
         correlation_id = resolve_correlation_id(event)
     except MissingCorrelationIdError as exception:
-        log_json(
-            logger,
-            logging.INFO,
-            "auth_login_missing_correlation_id",
-            requestId=aws_request_id,
-        )
         return bad_request(str(exception))
 
     try:
-        body = _parse_body(event)
-        cpf = only_digits(body.get("cpf"))
-
-        if not is_valid_cpf(cpf):
-            log_json(
-                logger,
-                logging.INFO,
-                "auth_login_invalid_cpf",
-                requestId=aws_request_id,
-                correlation_id=correlation_id,
-            )
-            return bad_request("CPF invalido.")
-
-        customer = find_active_customer_by_cpf(cpf)
-        if not customer:
-            log_json(
-                logger,
-                logging.INFO,
-                "auth_login_customer_not_found",
-                requestId=aws_request_id,
-                correlation_id=correlation_id,
-                cpf=mask_cpf(cpf),
-            )
-            return not_found("Cliente nao encontrado.")
-
-        if customer.get("ativo") is not True:
-            log_json(
-                logger,
-                logging.INFO,
-                "auth_login_inactive_customer",
-                requestId=aws_request_id,
-                correlation_id=correlation_id,
-                customerId=str(customer.get("id")),
-            )
-            return unauthorized("Cliente inativo.")
-
-        auth_user = find_or_create_auth_user(customer, cpf)
-        if auth_user.get("ativo") is not True:
-            log_json(
-                logger,
-                logging.INFO,
-                "auth_login_inactive_auth_user",
-                requestId=aws_request_id,
-                correlation_id=correlation_id,
-                authUserId=str(auth_user.get("id")),
-            )
-            return unauthorized("Usuario de autenticacao inativo.")
-
-        claims = find_rbac_claims(str(auth_user["id"]))
-        token, expires_in = issue_token(
-            subject=str(auth_user["id"]),
-            customer_id=str(customer["id"]),
-            cpf=cpf,
-            roles=claims["roles"],
-            permissions=claims["permissions"],
-        )
-
-        log_json(
-            logger,
-            logging.INFO,
-            "auth_login_success",
-            requestId=aws_request_id,
-            correlation_id=correlation_id,
-            authUserId=str(auth_user["id"]),
-            customerId=str(customer["id"]),
-            roles=claims["roles"],
-            permissionsCount=len(claims["permissions"]),
-        )
-
-        return response(
-            200,
-            {
-                "accessToken": token,
-                "tokenType": "Bearer",
-                "expiresIn": expires_in,
-            },
-        )
-    except (JSONDecodeError, ValueError):
-        log_json(
-            logger,
-            logging.INFO,
-            "auth_login_invalid_request",
-            requestId=aws_request_id,
-            correlation_id=correlation_id,
-        )
+        if event.get("isBase64Encoded"):
+            return bad_request("Request invalido.")
+        body = json.loads(event.get("body") or "{}")
+    except (ValueError, TypeError):
         return bad_request("Request invalido.")
-    except Exception:
-        log_json(
-            logger,
-            logging.ERROR,
-            "auth_login_unexpected_error",
-            requestId=aws_request_id,
-            correlation_id=correlation_id,
+    if not isinstance(body, dict):
+        return bad_request("Request invalido.")
+
+    cpf = only_digits(body["cpf"]) if isinstance(body.get("cpf"), str) else ""
+    if not (cpf.isascii() and is_valid_cpf(cpf)):
+        return bad_request("CPF invalido.")
+    identity_type = body.get("identityType", "CUSTOMER")
+    if identity_type not in ("CUSTOMER", "OPERATOR"):
+        return bad_request("Tipo de identidade invalido.")
+    password = body.get("password")
+    if not valid_password(password):
+        return unauthorized("Credenciais invalidas.")
+
+    role = ADMIN if identity_type == "OPERATOR" else CUSTOMER
+    try:
+        identity = find_login_identity(cpf, role)
+        stored_hash = identity["senha_hash"] if identity else DUMMY_HASH
+        if not verify_password(password, stored_hash) or identity is None:
+            return unauthorized("Credenciais invalidas.")
+
+        linked_customer = customer_id(identity)
+        if linked_customer is not None and not matches_active_customer(linked_customer, cpf):
+            return unauthorized("Credenciais invalidas.")
+
+        token, expires_in = issue_token(
+            subject=str(identity["id"]),
+            customer_id=linked_customer,
+            cpf=cpf,
+            roles=[role],
+            permissions=identity["permissions"],
         )
-        logger.exception("Authentication failed unexpectedly.")
+    except Exception as exception:
+        log_json(logger, logging.ERROR, "auth_login_error", requestId=request_id,
+                 correlation_id=correlation_id, errorType=type(exception).__name__)
         return server_error()
 
-
-def _parse_body(event: dict[str, Any]) -> dict[str, Any]:
-    raw_body = event.get("body") or "{}"
-
-    if event.get("isBase64Encoded"):
-        raise ValueError("Base64 body is not supported.")
-
-    return json.loads(raw_body)
-
-
-def _request_id(event: dict[str, Any], context: Any) -> str:
-    request_context = event.get("requestContext") or {}
-    return (
-        request_context.get("requestId")
-        or getattr(context, "aws_request_id", None)
-        or "local"
-    )
+    log_json(logger, logging.INFO, "auth_login_success", requestId=request_id,
+             correlation_id=correlation_id, authUserId=str(identity["id"]), role=role)
+    return response(200, {"accessToken": token, "tokenType": "Bearer", "expiresIn": expires_in})

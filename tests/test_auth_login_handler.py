@@ -1,121 +1,89 @@
 import json
 from uuid import uuid4
 
+import pytest
+
 from src.auth_login import handler
+from src.shared.jwt_service import validate_token
+from src.shared.password import hash_password
+
+PASSWORD = "synthetic-user-password"
 
 
-def test_auth_login_returns_token_for_active_customer(monkeypatch) -> None:
-    customer_id = uuid4()
-    user_id = uuid4()
-
-    monkeypatch.setattr(
-        handler,
-        "find_active_customer_by_cpf",
-        lambda cpf: {
-            "id": customer_id,
-            "nome": "Joao da Silva",
-            "documento": cpf,
-            "email": "joao@example.com",
-            "ativo": True,
-        },
-    )
-    monkeypatch.setattr(
-        handler,
-        "find_or_create_auth_user",
-        lambda customer, cpf: {
-            "id": user_id,
-            "cliente_id": customer["id"],
-            "cpf": cpf,
-            "nome": customer["nome"],
-            "email": customer["email"],
-            "ativo": True,
-        },
-    )
-    monkeypatch.setattr(
-        handler,
-        "find_rbac_claims",
-        lambda auth_user_id: {
-            "roles": ["CUSTOMER"],
-            "permissions": ["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"],
-        },
-    )
-    monkeypatch.setattr(
-        handler,
-        "issue_token",
-        lambda **kwargs: ("token", 3600),
+def login(body, correlation="synthetic-correlation"):
+    return handler.lambda_handler(
+        {"headers": {"X-Correlation-Id": correlation}, "body": json.dumps(body)}, None
     )
 
-    result = handler.lambda_handler(
-        {
-            "headers": {"X-Correlation-Id": "login-correlation-123"},
-            "body": json.dumps({"cpf": "123.456.789-09"}),
-        },
-        None,
-    )
 
-    assert result["statusCode"] == 200
-    assert "X-Correlation-Id" not in result["headers"]
-    assert json.loads(result["body"]) == {
-        "accessToken": "token",
-        "tokenType": "Bearer",
-        "expiresIn": 3600,
+def test_customer_requires_password_and_active_os_link(signing, monkeypatch):
+    user, owner = uuid4(), uuid4()
+    account = {
+        "id": user,
+        "cliente_id": owner,
+        "senha_hash": hash_password(PASSWORD),
+        "permissions": ["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"],
     }
-
-
-def test_auth_login_rejects_invalid_cpf() -> None:
-    result = handler.lambda_handler(
-        {
-            "headers": {"X-Correlation-Id": "invalid-cpf-correlation"},
-            "body": json.dumps({"cpf": "11111111111"}),
-        },
-        None,
+    monkeypatch.setattr(
+        handler,
+        "find_login_identity",
+        lambda cpf, role: account if (cpf, role) == ("52998224725", "CUSTOMER") else None,
+    )
+    monkeypatch.setattr(
+        handler, "matches_active_customer",
+        lambda uuid, cpf: (uuid, cpf) == (str(owner), "52998224725"),
     )
 
-    assert result["statusCode"] == 400
-    assert "X-Correlation-Id" not in result["headers"]
-    assert json.loads(result["body"])["message"] == "CPF invalido."
+    result = login({"cpf": "529.982.247-25", "password": PASSWORD})
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["tokenType"] == "Bearer"
+    assert body["expiresIn"] == 900
+    claims = validate_token(body["accessToken"])
+    assert claims["sub"] == str(user)
+    assert claims["customer_id"] == str(owner)
+    assert claims["roles"] == ["CUSTOMER"]
+    assert claims["permissions"] == ["SERVICE_ORDER_TRACK_OWN", "BUDGET_RESPOND_OWN"]
+
+    assert login({"cpf": "529.982.247-25"})["statusCode"] == 401
+    assert login({"cpf": "529.982.247-25", "password": "wrong-user-password"})["statusCode"] == 401
+    account["cliente_id"] = uuid4()
+    assert login({"cpf": "529.982.247-25", "password": PASSWORD})["statusCode"] == 401
 
 
-def test_auth_login_returns_not_found_when_customer_does_not_exist(monkeypatch) -> None:
-    monkeypatch.setattr(handler, "find_active_customer_by_cpf", lambda cpf: None)
-
-    result = handler.lambda_handler(
-        {
-            "headers": {"x-correlation-id": "not-found-correlation"},
-            "body": json.dumps({"cpf": "123.456.789-09"}),
-        },
-        None,
+def test_operator_is_separately_provisioned(signing, monkeypatch):
+    account = {
+        "id": uuid4(), "cliente_id": None, "senha_hash": hash_password(PASSWORD),
+        "permissions": ["ADMIN_ACCESS"],
+    }
+    monkeypatch.setattr(
+        handler, "find_login_identity",
+        lambda cpf, role: account if (cpf, role) == ("11144477735", "ADMIN") else None,
     )
 
-    assert result["statusCode"] == 404
-    assert "X-Correlation-Id" not in result["headers"]
-    assert json.loads(result["body"])["message"] == "Cliente nao encontrado."
+    assert login({"cpf": "11144477735", "password": PASSWORD})["statusCode"] == 401
+    result = login({"cpf": "11144477735", "password": PASSWORD, "identityType": "OPERATOR"})
+    assert result["statusCode"] == 200
+    claims = validate_token(json.loads(result["body"])["accessToken"])
+    assert claims["roles"] == ["ADMIN"]
+    assert claims["customer_id"] is None
+    assert claims["permissions"] == ["ADMIN_ACCESS"]
 
 
-def test_auth_login_rejects_invalid_json() -> None:
+@pytest.mark.parametrize("body", [[], "value", {"cpf": 42}, {"cpf": "11111111111"}])
+def test_invalid_login_body_or_cpf(body):
+    assert login(body)["statusCode"] == 400
+
+
+def test_auth_login_rejects_invalid_json():
     result = handler.lambda_handler(
-        {"headers": {"X-Correlation-Id": "invalid-json-correlation"}, "body": "{"}, None
+        {"headers": {"X-Correlation-Id": "synthetic-correlation"}, "body": "{"}, None
     )
-
     assert result["statusCode"] == 400
-    assert "X-Correlation-Id" not in result["headers"]
-    assert json.loads(result["body"])["message"] == "Request invalido."
 
 
-def test_auth_login_requires_correlation_id() -> None:
-    result = handler.lambda_handler({"body": json.dumps({"cpf": "11111111111"})}, None)
-
+@pytest.mark.parametrize("headers", [{}, {"x-correlation-id": " "}])
+def test_auth_login_requires_nonblank_correlation_id(headers):
+    result = handler.lambda_handler({"headers": headers, "body": "{}"}, None)
     assert result["statusCode"] == 400
-    assert "X-Correlation-Id" not in result["headers"]
-    assert json.loads(result["body"])["message"] == "X-Correlation-Id header is required"
-
-
-def test_auth_login_requires_non_blank_correlation_id() -> None:
-    result = handler.lambda_handler(
-        {"headers": {"X-Correlation-Id": " "}, "body": json.dumps({"cpf": "11111111111"})},
-        None,
-    )
-
-    assert result["statusCode"] == 400
-    assert "X-Correlation-Id" not in result["headers"]
     assert json.loads(result["body"])["message"] == "X-Correlation-Id header is required"
