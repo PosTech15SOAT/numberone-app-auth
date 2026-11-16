@@ -7,7 +7,8 @@ def test_identity_client_loads_the_private_ca(monkeypatch):
     token = "s" * 32
     monkeypatch.setenv("OS_IDENTITY_BASE_URL", "https://internal-identity.example")
     monkeypatch.setenv("OS_IDENTITY_SECRET_ARN", "identity-credential")
-    monkeypatch.setattr(os_identity, "_read_secret", lambda _: {"token": token, "ca_pem": "private-ca"})
+    credentials = {"token": token, "ca_pem": "private-ca"}
+    monkeypatch.setattr(os_identity, "_read_secret", lambda _: credentials)
     ssl_context = Mock()
     create_context = Mock(return_value=ssl_context)
     monkeypatch.setattr(os_identity.ssl, "create_default_context", create_context)

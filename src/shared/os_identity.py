@@ -27,7 +27,9 @@ def _settings() -> tuple[str, str, ssl.SSLContext]:
         or (secret_arn and parsed.scheme != "https")
     ):
         raise RuntimeError("Invalid OS identity base URL.")
-    credentials = _read_secret(secret_arn) if secret_arn else {"token": os.getenv("OS_IDENTITY_TOKEN")}
+    credentials = (
+        _read_secret(secret_arn) if secret_arn else {"token": os.getenv("OS_IDENTITY_TOKEN")}
+    )
     token = credentials.get("token")
     if not isinstance(token, str) or len(token) < 32:
         raise RuntimeError("OS identity credential not configured.")
@@ -46,8 +48,9 @@ def matches_active_customer(customer_id: str, cpf: str) -> bool:
         },
         method="POST",
     )
+    opener = build_opener(_NoRedirect(), HTTPSHandler(context=tls_context))
     try:
-        with build_opener(_NoRedirect(), HTTPSHandler(context=tls_context)).open(request, timeout=2) as reply:
+        with opener.open(request, timeout=2) as reply:
             return reply.status == 204
     except HTTPError as exception:
         if exception.code == 404:
