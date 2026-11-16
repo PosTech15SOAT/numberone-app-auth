@@ -9,6 +9,8 @@ A OS mantém o cadastro de clientes. Auth mantém as credenciais, os perfis e as
 3. Para cadastrar um operador, o responsável de Auth confirma a identidade e o vínculo funcional e registra a aprovação do papel `ADMIN`. O comando `python -m scripts.enroll_identity --type OPERATOR` pede CPF e senha no terminal. O acesso exige essa credencial individual e a permissão `ADMIN_ACCESS`.
 4. Para cadastrar um cliente, o responsável de Auth confirma sua identidade, obtém o UUID e cria a credencial com `python -m scripts.enroll_identity --type CUSTOMER --customer-id <uuid>`. O comando confirma o vínculo com a OS antes de criar a conta. Use as credenciais de um mantenedor do banco para o cadastro. As Lambdas usam o papel de leitura. Entregue a credencial pelo canal acordado com a pessoa verificada.
 
+No ambiente AWS Academy, o segredo de identidade contém `token` e `ca_pem`. O Auth confia nessa CA para validar o certificado HTTPS do proxy privado. O Terraform associa as duas Lambdas ao security group publicado pela Cloud em `os_identity_ingress.client_security_group_id`. Antes do deploy de Auth, a Cloud precisa ter publicado esse output e `OS_IDENTITY_BASE_URL` precisa apontar para `os_identity_ingress.base_url`.
+
 O Login recebe `cpf` e `password`. O cliente usa o tipo padrão `CUSTOMER`. O operador envia `"identityType":"OPERATOR"`. O CPF seleciona a conta no tipo indicado. O cadastro define o perfil. As senhas são persistidas com sal individual e PBKDF2-HMAC-SHA256. As migrations em `db/migrations` descrevem a Fase 3. Em uma migração de dados legados, confirme e recadastre as identidades com novas credenciais antes de habilitá-las.
 
 ## Decisões por rota

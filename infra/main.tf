@@ -113,7 +113,7 @@ resource "aws_lambda_function" "auth_login" {
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.cloud.outputs.private_subnet_ids
-    security_group_ids = [aws_security_group.auth_login_lambda.id]
+    security_group_ids = local.auth_security_group_ids
   }
 
   tags = local.common_tags
@@ -141,7 +141,7 @@ resource "aws_lambda_function" "authorizer" {
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.cloud.outputs.private_subnet_ids
-    security_group_ids = [aws_security_group.auth_login_lambda.id]
+    security_group_ids = local.auth_security_group_ids
   }
 
   tags = local.common_tags
