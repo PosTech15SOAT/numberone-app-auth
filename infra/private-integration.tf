@@ -66,6 +66,15 @@ resource "aws_vpc_security_group_ingress_rule" "secretsmanager_from_auth_login" 
   ip_protocol                  = "tcp"
 }
 
+resource "aws_vpc_security_group_egress_rule" "auth_to_secretsmanager" {
+  security_group_id            = aws_security_group.auth_login_lambda.id
+  referenced_security_group_id = aws_security_group.secretsmanager_endpoint.id
+  description                  = "Reach the private Secrets Manager endpoint"
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
 resource "aws_vpc_endpoint" "secretsmanager" {
   vpc_id              = data.terraform_remote_state.cloud.outputs.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
