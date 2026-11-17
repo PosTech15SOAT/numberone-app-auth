@@ -115,3 +115,107 @@ def test_deleted_or_disabled_subject_is_unauthorized(identities, monkeypatch):
     token = login(operator, password, "OPERATOR")
     monkeypatch.setattr(handler, "find_token_identity", lambda _: None)
     assert authorize(token) == UNAUTHORIZED
+
+
+def use_http_identity_client(monkeypatch):
+    from src.shared.os_identity import matches_active_customer
+
+    for module in (login_handler, handler):
+        monkeypatch.setattr(module, "matches_active_customer", matches_active_customer)
+
+
+@pytest.mark.parametrize("invalid_link", ["inactive", "different_cpf"])
+def test_login_and_authorizer_use_private_os_identity(
+    identities, os_service, monkeypatch, invalid_link,
+):
+    (_, customer), password = identities
+    os_service["customer_id"] = str(customer["cliente_id"])
+    use_http_identity_client(monkeypatch)
+    token = login(customer, password, "CUSTOMER")
+    assert authorize(token, TRACKING_ROUTE)["isAuthorized"]
+
+    rejected = login_handler.lambda_handler({
+        "headers": {"X-Correlation-Id": "test-correlation"},
+        "body": json.dumps({"cpf": customer["cpf"], "password": "invalid-password"}),
+    }, None)
+    assert rejected["statusCode"] == 401
+    assert len(os_service["requests"]) == 2
+
+    if invalid_link == "inactive":
+        os_service["active"] = False
+    else:
+        os_service["cpf"] = "11144477735"
+    assert authorize(token, TRACKING_ROUTE) == UNAUTHORIZED
+    rejected = login_handler.lambda_handler({
+        "headers": {"X-Correlation-Id": "test-correlation"},
+        "body": json.dumps({"cpf": customer["cpf"], "password": password}),
+    }, None)
+    assert rejected["statusCode"] == 401
+    for path, headers, body in os_service["requests"]:
+        assert path == "/internal/auth/customer-identity"
+        assert "Authorization" not in headers
+        assert headers["X-Correlation-Id"]
+        assert body == {"customerId": str(customer["cliente_id"]), "cpf": customer["cpf"]}
+
+
+@pytest.mark.parametrize("status", [302, 500, 503])
+def test_os_failure_never_grants_login_or_authorization(
+    identities, os_service, monkeypatch, status,
+):
+    (_, customer), password = identities
+    os_service["customer_id"] = str(customer["cliente_id"])
+    use_http_identity_client(monkeypatch)
+    token = login(customer, password, "CUSTOMER")
+    os_service["status"] = status
+    rejected = login_handler.lambda_handler({
+        "headers": {"X-Correlation-Id": "test-correlation"},
+        "body": json.dumps({"cpf": customer["cpf"], "password": password}),
+    }, None)
+    assert rejected["statusCode"] == 500
+    with pytest.raises(RuntimeError, match="Authorization dependency unavailable"):
+        authorize(token, TRACKING_ROUTE)
+    assert len(os_service["requests"]) == 3
+    assert all(path == "/internal/auth/customer-identity" for path, *_ in os_service["requests"])
+
+
+def test_expired_jwt_is_rejected_before_os_lookup(identities, signing, monkeypatch):
+    import jwt
+
+    (_, customer), password = identities
+    token = login(customer, password, "CUSTOMER")
+    claims = jwt.decode(
+        token, signing["secret"], algorithms=["HS256"], audience=signing["audience"],
+    )
+    claims["exp"] = 1
+    expired = jwt.encode(claims, signing["secret"], algorithm="HS256")
+
+    def unexpected_lookup(*args):
+        pytest.fail("Expired JWT must not reach OS identity lookup")
+
+    monkeypatch.setattr(handler, "matches_active_customer", unexpected_lookup)
+    assert authorize(expired, TRACKING_ROUTE) == UNAUTHORIZED
+
+
+def test_os_timeout_never_grants_access(identities, monkeypatch):
+    from unittest.mock import Mock
+
+    from src.shared import os_identity
+
+    (_, customer), password = identities
+    token = login(customer, password, "CUSTOMER")
+    use_http_identity_client(monkeypatch)
+    os_identity._settings.cache_clear()
+    monkeypatch.setenv("OS_IDENTITY_BASE_URL", "http://10.0.0.10")
+    opener = Mock()
+    opener.open.side_effect = TimeoutError()
+    monkeypatch.setattr(os_identity, "build_opener", lambda *args: opener)
+    try:
+        rejected = login_handler.lambda_handler({
+            "headers": {"X-Correlation-Id": "test-correlation"},
+            "body": json.dumps({"cpf": customer["cpf"], "password": password}),
+        }, None)
+        assert rejected["statusCode"] == 500
+        with pytest.raises(RuntimeError, match="Authorization dependency unavailable"):
+            authorize(token, TRACKING_ROUTE)
+    finally:
+        os_identity._settings.cache_clear()

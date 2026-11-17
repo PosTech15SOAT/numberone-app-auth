@@ -94,36 +94,3 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
-
-variable "auth_db_secret_arn" {
-  description = "ARN do secret do papel de runtime do banco exclusivo de Auth."
-  type        = string
-  nullable    = false
-
-  validation {
-    condition     = can(regex("^arn:[^:]+:secretsmanager:", var.auth_db_secret_arn))
-    error_message = "Informe o ARN do secret de runtime de Auth."
-  }
-}
-
-variable "os_identity_base_url" {
-  description = "Origem HTTPS privada que serve a consulta de identidade da OS."
-  type        = string
-  nullable    = false
-
-  validation {
-    condition     = can(regex("^https://[a-zA-Z0-9.-]+/?$", var.os_identity_base_url))
-    error_message = "Informe a origem HTTPS privada da OS, sem caminho."
-  }
-}
-
-variable "os_identity_secret_arn" {
-  description = "ARN do secret compartilhado para consultar a identidade na OS."
-  type        = string
-  nullable    = false
-
-  validation {
-    condition     = can(regex("^arn:[^:]+:secretsmanager:", var.os_identity_secret_arn))
-    error_message = "Informe o ARN do secret da integração de identidade da OS."
-  }
-}
