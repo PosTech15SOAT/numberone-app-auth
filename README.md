@@ -41,7 +41,7 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-As Lambdas recebem configuracoes de banco, JWT e rede pelo Terraform. Os detalhes de variaveis e state estao no [README de infraestrutura](infra/README.md).
+As Lambdas recebem configuracoes de banco, JWT e rede pelo Terraform. O ARN do Secret PostgreSQL vem do state Database; a URL HTTP privada e o SG da OS vêm do state Cloud, sem variáveis manuais para essa integração. Os detalhes de variaveis e state estao no [README de infraestrutura](infra/README.md).
 
 ## ▶️ Execução Local
 

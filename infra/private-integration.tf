@@ -89,7 +89,7 @@ resource "aws_vpc_endpoint" "secretsmanager" {
       Effect    = "Allow"
       Principal = "*"
       Action    = "secretsmanager:GetSecretValue"
-      Resource  = [var.auth_db_secret_arn, var.os_identity_secret_arn, local.jwt_secret_arn]
+      Resource  = [local.auth_db_secret_arn, local.jwt_secret_arn]
     }]
   })
 

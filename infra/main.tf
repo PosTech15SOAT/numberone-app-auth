@@ -1,13 +1,14 @@
 locals {
-  name_prefix    = "${var.project_name}-${var.environment}"
-  jwt_secret_arn = var.jwt_secret_arn != null ? var.jwt_secret_arn : aws_secretsmanager_secret.jwt[0].arn
+  auth_db_secret_arn = data.terraform_remote_state.database.outputs.application_secret_arns["auth"]
+  name_prefix        = "${var.project_name}-${var.environment}"
+  jwt_secret_arn     = var.jwt_secret_arn != null ? var.jwt_secret_arn : aws_secretsmanager_secret.jwt[0].arn
   lambda_layer_arns = concat(
     var.lambda_layer_arns,
     var.lambda_layer_zip_path == null ? [] : [aws_lambda_layer_version.dependencies[0].arn]
   )
 
   runtime_environment = {
-    DB_SECRET_ARN                = var.auth_db_secret_arn
+    DB_SECRET_ARN                = local.auth_db_secret_arn
     DB_HOST                      = data.terraform_remote_state.database.outputs.rds_endpoint
     DB_PORT                      = tostring(data.terraform_remote_state.database.outputs.rds_port)
     DB_NAME                      = "numberone_auth"
@@ -18,8 +19,7 @@ locals {
     JWT_ISSUER                   = var.jwt_issuer
     JWT_AUDIENCE                 = var.jwt_audience
     JWT_EXPIRATION_SECONDS       = tostring(var.jwt_expiration_seconds)
-    OS_IDENTITY_BASE_URL         = var.os_identity_base_url
-    OS_IDENTITY_SECRET_ARN       = var.os_identity_secret_arn
+    OS_IDENTITY_BASE_URL         = data.terraform_remote_state.cloud.outputs.os_identity_ingress.base_url
   }
 
   common_tags = {
